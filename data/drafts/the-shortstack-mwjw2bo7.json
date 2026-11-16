@@ -1,0 +1,41 @@
+{
+  "id": "the-shortstack-mwjw2bo7",
+  "title": "The shortstack",
+  "tags": [
+    "teamfight",
+    "comfort"
+  ],
+  "bans": [
+    "skywrath_mage",
+    "vengefulspirit",
+    "doom_bringer",
+    "treant",
+    "chaos_knight",
+    "phoenix",
+    "tidehunter",
+    "undying",
+    "luna",
+    "mirana",
+    "lone_druid",
+    "razor",
+    "nevermore",
+    "troll_warlord",
+    "terrorblade",
+    "chen"
+  ],
+  "pos1": [
+    "rattletrap"
+  ],
+  "pos5": [
+    "hoodwink"
+  ],
+  "pos2": [
+    "meepo"
+  ],
+  "pos4": [
+    "pugna"
+  ],
+  "pos3": [
+    "clinkz"
+  ]
+}
