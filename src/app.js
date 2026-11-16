@@ -1,5 +1,6 @@
-import { POSITIONS, ROLES, MAX_HEROES, MAX_BANS, MATCH_LIMIT, ATTRIBUTES, validateDraft, cleanDraft, normalizeText, matchesSearch, resolveLineup, preferredLineup, draftHash, parseDraftHash, lineupText, githubCreateUrl } from './domain.js';
+import { POSITIONS, ROLES, MAX_HEROES, MAX_BANS, MATCH_LIMIT, ATTRIBUTES, validateDraft, cleanDraft, normalizeText, matchesSearch, pickedFit, resolveLineup, preferredLineup, draftHash, parseDraftHash, lineupText, githubCreateUrl } from './domain.js';
 import { loadTeamMatches, loadSingleMatch } from './opendota.js';
+import { publishingToken, submitDraft } from './publishing.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -12,7 +13,6 @@ const icons = {
   star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/>',
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
   download: '<path d="M12 3v13m-5-5 5 5 5-5M4 15v5h16v-5"/>',
-  keyboard: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h1m3 0h1m3 0h1m3 0h1M6 13h1m3 0h1m3 0h1m3 0h1M7 16h10"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   ban: '<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>',
   edit: '<path d="m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z"/>',
@@ -29,9 +29,9 @@ const storageWarnings = [];
 function read(key, fallback) { try { const v = localStorage.getItem(`drafts:${key}`); return v === null ? fallback : JSON.parse(v); } catch { storageWarnings.push('Browser storage could not be read.'); return fallback; } }
 function write(key, value) { try { localStorage.setItem(`drafts:${key}`, JSON.stringify(value)); return true; } catch { toast('Could not save changes in this browser.', true); return false; } }
 function forget(key) { try { localStorage.removeItem(`drafts:${key}`); } catch {} }
-let config, baseConfig, heroes, heroMap, heroByNumber, repoDrafts, localDrafts = [], favorites = new Set();
-let view = 'drafts', query = '', tag = '', onlyFavorites = false, position = '';
-let unavailable = new Set(), choices = {}, selectedId = null, editor = null, picker = null, busy = false, matchData, matchError = '';
+let config, baseConfig, publishing, heroes, heroMap, heroByNumber, repoDrafts, localDrafts = [], favorites = new Set();
+let view = 'drafts', query = '', onlyFavorites = false;
+let unavailable = new Set(), picked = new Set(), choices = {}, selectedId = null, editor = null, picker = null, busy = false, matchData, matchError = '', savingId = null;
 let toastTimer;
 
 function toast(message, error = false) {
@@ -71,12 +71,12 @@ function utility(title, content, cls = '') {
 
 async function boot() {
   try {
-    const responses = await Promise.all(['config','heroes','drafts','matches'].map(async file => {
+    const responses = await Promise.all(['config','heroes','drafts','matches','publishing'].map(async file => {
       const response = await fetch(`./data/${file}.json`,{cache:'no-cache'});
       if (!response.ok) throw new Error(`Could not load ${file}.json.`);
       return response.json();
     }));
-    [baseConfig, heroes, repoDrafts, matchData] = responses;
+    [baseConfig, heroes, repoDrafts, matchData, publishing] = responses;
     config = { ...baseConfig };
     heroMap = new Map(heroes.map(h => [h.id, h])); heroByNumber = new Map(heroes.map(h => [h.heroId, h]));
     const saved = read('local', []);
@@ -84,6 +84,8 @@ async function boot() {
     if (!Array.isArray(saved) || saved.length !== localDrafts.length) storageWarnings.push('Some saved drafts could not be loaded.');
     const pinned = read('favorites', []); favorites = new Set(Array.isArray(pinned) ? pinned.filter(id => typeof id === 'string') : []);
     const blocked = read('unavailable', []); unavailable = new Set(Array.isArray(blocked) ? blocked.filter(h => heroMap.has(h)) : []);
+    const own = read('picked', []); picked = new Set(Array.isArray(own) ? own.filter(h=>heroMap.has(h)).slice(0,5) : []);
+    for(const id of picked) unavailable.delete(id);
     const cached = read(`matches:${config.teamId}`, null);
     if (matchData.teamId !== config.teamId) matchData = { teamId: config.teamId, matches: [] };
     if (cached?.teamId === config.teamId && Array.isArray(cached.matches)) {
@@ -93,6 +95,7 @@ async function boot() {
     }
     renderShell();
     readHash();
+    if(!$('#detail-dialog').open) $('#search').focus({preventScroll:true});
     if (storageWarnings.length) toast(storageWarnings.join(' '), true);
   } catch (error) {
     $('#app').innerHTML = `<main class="load-error"><h1>Drafts could not load</h1><p>${esc(error.message)}</p><p>Serve the built site with <code>npm run dev</code>.</p>${button('reload','Try again','refresh','primary')}</main>`;
@@ -102,76 +105,73 @@ async function boot() {
 function renderShell() {
   document.title = `Drafts · ${config.teamName || 'dota-team-drafts'}`;
   $('#app').innerHTML = `<aside class="sidebar">
-    <a class="brand" href="#" aria-label="Draft library"><img src="./assets/icon.svg" alt="" width="30" height="30"><span>dota-team-drafts</span></a>
-    <div class="team"><span class="team-dot"></span><span>${esc(config.teamName || matchData.teamName || 'Your team')}</span></div>
+    <a class="brand" href="#" aria-label="${esc(config.teamName || 'Draft library')}" title="${esc(config.teamName || 'Draft library')}"><img src="./assets/icon.svg" alt="" width="30" height="30"></a>
     <nav aria-label="Main navigation">
-      ${button('view-drafts','Drafts','grid','nav-button',`data-view="drafts"`)}
-      ${button('view-matches','Matches','history','nav-button',`data-view="matches"`)}
+      ${iconButton('view-drafts','Drafts','grid','nav-button',`data-view="drafts"`)}
+      ${iconButton('view-matches','Matches','history','nav-button',`data-view="matches"`)}
+      ${iconButton('filter-favorites','Starred drafts','star','nav-button',`aria-pressed="false"`)}
     </nav>
-    <section class="collections" aria-label="Draft filters"><div id="collections"></div><h2>Tags</h2><div id="tags"></div></section>
-    <div class="sidebar-bottom"><div id="recovery"></div>
-      <div class="sidebar-tools">${button('help','Shortcuts','keyboard','quiet')}</div>
-    </div>
   </aside>
   <main id="main" tabindex="-1" class="main">
-    <header class="page-header"><div class="page-title"><h1 id="page-title">Drafts</h1><span id="total-count" class="count"></span></div><div id="header-actions"></div></header>
-    <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search drafts, heroes, tags…" autocomplete="off" aria-label="Search drafts, heroes and tags"><kbd>/</kbd></label><select id="position-filter" aria-label="Search hero in position"><option value="">Any position</option>${POSITIONS.map(p => `<option value="${p}">Pos ${p} · ${ROLES[p-1]}</option>`).join('')}</select></div>
+    <h1 id="page-title" class="sr-only">Drafts</h1>
+    <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search drafts, heroes, tags…" autocomplete="off" aria-label="Search drafts, heroes and tags"></label><div id="header-actions"></div></div>
     <div id="session-bar" class="session-bar"></div>
     <section id="content" aria-label="Draft library"></section>
     <footer class="main-footer"><span id="result-count" aria-live="polite"></span></footer>
-  </main>`;
-  $('#search').value = query; $('#position-filter').value = position;
+  </main><div id="recovery" class="recovery-toast" hidden></div>`;
+  $('#search').value = query;
   renderNavigation(); renderContent();
 }
 function renderNavigation() {
-  const drafts = allDrafts();
-  $('#collections').innerHTML = [
-    ['favorites','Starred','star',drafts.filter(d => favorites.has(d.id)).length,onlyFavorites],
-  ].map(([action,label,glyph,count,active]) => button(`filter-${action}`,`<span>${label}</span><span class="nav-count">${count}</span>`,glyph,`nav-button small ${active ? 'active' : ''}`,`aria-pressed="${active}"`)).join('');
-  const tags = [...new Set(drafts.flatMap(d => d.tags ?? []))].sort();
-  $('#tags').innerHTML = tags.length ? tags.map(t => button('tag',`<span class="tag-dot"></span><span>${esc(t)}</span><span class="nav-count">${drafts.filter(d => d.tags?.includes(t)).length}</span>`,'',`tag-filter ${tag === t ? 'active' : ''}`,`data-tag="${esc(t)}" aria-pressed="${tag === t}"`)).join('') : '<span class="muted small-text">No tags yet</span>';
-  $('#recovery').innerHTML = read('editor', null) ? button('recover','Continue editing','edit','recovery-button') : '';
-  $$('[data-view]').forEach(el => { const active = el.dataset.view === view; el.classList.toggle('active',active); if (active) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
+  const recovery = $('#recovery');
+  recovery.hidden = !read('editor',null) || $('#editor-dialog').open;
+  recovery.innerHTML = `${button('recover','Continue editing','edit','recovery-button')}${iconButton('discard-recovery','Discard unfinished draft','close')}`;
+  const favorite = $('[data-action="filter-favorites"]');
+  favorite.classList.toggle('active',view==='drafts' && onlyFavorites);favorite.setAttribute('aria-pressed',String(onlyFavorites));
+  $$('[data-view]').forEach(el => { const active = el.dataset.view === view && !onlyFavorites; el.classList.toggle('active',active); if (active) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
 }
 function renderSessionBar() {
   const el = $('#session-bar');
-  el.innerHTML = `${button('blocked',`${icon('ban')}<span>Unavailable heroes</span>${unavailable.size ? `<strong>${unavailable.size}</strong>` : ''}`,'','unavailable-button')}
+  el.innerHTML = `<div class="hero-state-group">${button('blocked','Unavailable heroes','ban','unavailable-button')}
     <div class="blocked-chips">${[...unavailable].map(id => button('unblock',`${portrait(id)}<span>${esc(heroMap.get(id).name)}</span>${icon('close')}`,'','blocked-chip',`data-hero="${id}" aria-label="Make ${esc(heroMap.get(id).name)} available"`)).join('')}</div>
-    ${unavailable.size ? button('clear-blocked','Clear','','text-button') : ''}`;
+    ${unavailable.size ? iconButton('clear-blocked','Clear unavailable heroes','close') : ''}</div>
+    <div class="hero-state-group">${button('picked','Our picks','check','picked-button')}
+    <div class="picked-chips">${[...picked].map(id=>button('unpick',`${portrait(id)}<span>${esc(heroMap.get(id).name)}</span>${icon('close')}`,'','picked-chip',`data-hero="${id}" aria-label="Remove ${esc(heroMap.get(id).name)} from our picks"`)).join('')}</div>
+    ${picked.size ? iconButton('clear-picked','Clear our picks','close') : ''}</div>`;
   el.hidden = view !== 'drafts';
 }
 function filteredDrafts() {
-  return allDrafts().filter(d => (!onlyFavorites || favorites.has(d.id)) && (!tag || d.tags?.includes(tag)) && matchesSearch(d,query,heroMap,position)).sort((a,b) => Number(favorites.has(b.id))-Number(favorites.has(a.id)) || a.title.localeCompare(b.title));
+  return allDrafts().filter(d => (!onlyFavorites || favorites.has(d.id)) && matchesSearch(d,query,heroMap)).sort((a,b) => pickedFit(b,picked).count-pickedFit(a,picked).count || Number(favorites.has(b.id))-Number(favorites.has(a.id)) || a.title.localeCompare(b.title));
 }
 function renderContent() {
   const focus = rememberFocus(document.body);
   renderNavigation(); renderSessionBar();
   $('#page-title').textContent = view === 'drafts' ? 'Drafts' : 'Matches';
-  $('#position-filter').hidden = view !== 'drafts';
   $('#search').placeholder = view === 'drafts' ? 'Search drafts, heroes, tags…' : 'Search opponents, heroes, match IDs…';
   $('#search').setAttribute('aria-label',view === 'drafts' ? 'Search drafts, heroes and tags' : 'Search match history');
-  $('#total-count').textContent = view === 'drafts' ? allDrafts().length : matchData.matches.length;
-  $('#header-actions').innerHTML = view === 'drafts' ? button('new',`${icon('plus')}<span>New draft</span><kbd>N</kbd>`,'','primary') : `${button('add-match','Add match','plus','secondary')}${button('refresh-matches',busy ? 'Loading…' : 'Refresh','refresh','primary',busy ? 'disabled' : '')}`;
+  $('#header-actions').innerHTML = view === 'drafts' ? button('new','New draft','plus','primary') : `${iconButton('add-match','Add match','plus','secondary')}${iconButton('refresh-matches',busy ? 'Loading matches' : 'Refresh matches','refresh','secondary',busy ? 'disabled' : '')}`;
   if (view === 'matches') { renderMatches(); restoreFocus(document.body,focus); return; }
   const drafts = filteredDrafts();
-  $('#result-count').textContent = query || tag || onlyFavorites ? `${drafts.length} drafts` : '';
+  $('#result-count').textContent = query || onlyFavorites ? `${drafts.length} drafts` : '';
   $('#content').setAttribute('aria-label','Draft library');
-  $('#content').innerHTML = `${tag || query || onlyFavorites ? `<div class="filter-summary"><span>${esc(tag || (onlyFavorites ? 'Starred drafts' : `Results for “${query}”`))}</span>${button('clear-filters','Clear filters','close','text-button')}</div>` : ''}
+  $('#content').innerHTML = `${query || onlyFavorites ? `<div class="filter-summary">${button('clear-filters','Clear search','close','text-button')}</div>` : ''}
     ${drafts.length ? `<div class="draft-list">${drafts.map(renderCard).join('')}</div>` : `<div class="empty-state">${icon('search')}<h2>${allDrafts().length ? 'No drafts found' : 'No drafts yet'}</h2>${button(allDrafts().length ? 'clear-filters' : 'new',allDrafts().length ? 'Clear filters' : 'New draft','plus','secondary')}</div>`}`;
   restoreFocus(document.body,focus);
 }
 function renderCard(d, index) {
   const lineup = resolveLineup(d,unavailable);
   const starred = favorites.has(d.id);
+  const fit = pickedFit(d,picked);
   return `<article class="draft-card ${unavailable.size && !lineup ? 'no-lineup' : ''}">
     <header class="card-header"><h2>${button('detail',esc(d.title),'','draft-title',`data-id="${d.id}"`)}</h2><div class="card-tags">${(d.tags ?? []).filter(t => t !== 'example').slice(0,3).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
       ${d._source !== 'repo' ? '<span class="local-label">Unsaved</span>' : d.tags?.includes('example') ? '<span class="example-label">Example</span>' : ''}
+      ${picked.size ? `<span class="picked-fit ${fit.count===fit.total ? 'complete' : ''}" title="${esc(fit.missing.length ? `Missing: ${fit.missing.map(id=>heroMap.get(id).name).join(', ')}` : 'Contains all our picks')}">${fit.count}/${fit.total} picked</span>` : ''}
       ${iconButton('favorite',starred ? 'Unstar draft' : 'Star draft','star',starred ? 'starred' : '',`data-id="${d.id}" aria-pressed="${starred}"`)}
     </header>
     <button type="button" data-action="detail" data-id="${d.id}" class="lineup-button" aria-label="Open ${esc(d.title)}">
       ${POSITIONS.map(p => {
         const ids = d[`pos${p}`]; const current = lineup?.[p] || ids.find(h => !unavailable.has(h)) || ids[0];
-        return `<div class="position-preview" data-position="${p}"><div class="position-label"><b>${p}</b><span>${ROLES[p-1]}</span>${current !== ids[0] ? '<span class="backup-label">Backup</span>' : ''}</div><div class="primary-portrait ${unavailable.has(current) ? 'is-unavailable' : ''}">${portrait(current,'',index < 3)}<span>${esc(heroMap.get(current).name)}</span></div><div class="backup-previews">${ids.filter(id => id !== current).map(id => `<span class="mini-portrait ${unavailable.has(id) ? 'is-unavailable' : ''}">${portrait(id)}<small>${ids.indexOf(id)+1}</small></span>`).join('')}</div></div>`;
+        return `<div class="position-preview" data-position="${p}"><div class="position-label"><b>${p}</b><span>${ROLES[p-1]}</span>${current !== ids[0] ? '<span class="backup-label">Backup</span>' : ''}</div><div class="primary-portrait ${unavailable.has(current) ? 'is-unavailable' : ''} ${picked.has(current) ? 'is-picked' : ''}">${portrait(current,'',index < 3)}<span>${esc(heroMap.get(current).name)}</span></div><div class="backup-previews">${ids.filter(id => id !== current).map(id => `<span class="mini-portrait ${unavailable.has(id) ? 'is-unavailable' : ''} ${picked.has(id) ? 'is-picked' : ''}">${portrait(id)}<small>${ids.indexOf(id)+1}</small></span>`).join('')}</div></div>`;
       }).join('')}
     </button>
     ${d.description || unavailable.size && !lineup ? `<footer class="card-footer">${d.description ? `<p>${esc(d.description.replace(/^Example draft\. /,''))}</p>` : ''}${unavailable.size && !lineup ? `<span class="card-status warning">${icon('ban')}No lineup available</span>` : ''}</footer>` : ''}
@@ -197,13 +197,14 @@ function showDetail(id, updateHash = true, sharedChoices = null) {
       const current = choices[p] || d[`pos${p}`].find(h => !unavailable.has(h));
       return `<section class="detail-position" data-position="${p}"><h3><b>${p}</b>${ROLES[p-1]}</h3><div class="detail-primary ${!current || unavailable.has(current) ? 'is-unavailable' : ''}">${portrait(current || d[`pos${p}`][0],'',true)}<strong>${esc(heroMap.get(current)?.name || 'Unavailable')}</strong></div><div class="hero-options">${d[`pos${p}`].map((hero,i) => `<div class="hero-option ${current === hero ? 'selected' : ''} ${unavailable.has(hero) ? 'is-unavailable' : ''}"><button class="hero-choice" type="button" data-action="choose" data-position="${p}" data-hero="${hero}" aria-pressed="${current === hero}" ${unavailable.has(hero) ? 'disabled' : ''}><span class="priority">${i+1}</span>${portrait(hero)}<span>${esc(heroMap.get(hero).name)}</span>${current === hero ? icon('check') : ''}</button>${iconButton('toggle-blocked',unavailable.has(hero) ? `Make ${heroMap.get(hero).name} available` : `Mark ${heroMap.get(hero).name} unavailable`,'ban',unavailable.has(hero) ? 'blocked' : '',`data-hero="${hero}" aria-pressed="${unavailable.has(hero)}"`)}</div>`).join('')}</div></section>`;
     }).join('')}</div>
-    <footer class="dialog-footer">${button('duplicate','Duplicate','copy','secondary')}<div class="button-row">${button('copy-lineup','Copy lineup','copy','secondary',lineup ? '' : 'disabled')}${button('github-detail','Save to GitHub','external','primary')}</div></footer>`;
+    <footer class="dialog-footer">${button('duplicate','Duplicate','copy','secondary')}<div class="button-row">${button('copy-lineup','Copy lineup','copy','secondary',lineup ? '' : 'disabled')}${button('github-detail',savingId===id ? 'Saving…' : 'Save to GitHub','external','primary',savingId ? 'disabled' : '')}</div></footer>`;
   open('#detail-dialog');
   restoreFocus($('#detail-dialog'),focus);
   if (updateHash) history.pushState({},'',draftHash(id,choices));
 }
 function refreshAvailability() {
   write('unavailable',[...unavailable]);
+  write('picked',[...picked]);
   if (selectedId) choices = preferredLineup(getDraft(selectedId),choices,unavailable) || {};
   renderContent();
   if ($('#detail-dialog').open) { showDetail(selectedId,false); history.replaceState({},'',draftHash(selectedId,choices)); }
@@ -211,6 +212,7 @@ function refreshAvailability() {
 function closeDetail() {
   close('#detail-dialog'); selectedId = null; choices = {};
   if (location.hash.startsWith('#draft/')) history.replaceState({},'',location.pathname+location.search);
+  $('#search')?.focus({preventScroll:true});
 }
 
 function openEditor(draft = null, duplicate = false, suggestions = []) {
@@ -221,13 +223,13 @@ function openEditor(draft = null, duplicate = false, suggestions = []) {
     touched: false,
   };
   if (duplicate) { editor.draft.id = ''; editor.draft.title += ' (copy)'; }
-  closeDetail(); renderEditor(); open('#editor-dialog');
+  closeDetail(); renderEditor(); open('#editor-dialog'); renderNavigation(); $('#draft-title').focus();
 }
 function saveRecovery() {
   if (!editor) return;
   editor.touched = true;
   write('editor',editor);
-  $('#recovery').innerHTML = button('recover','Continue editing','edit','recovery-button');
+  renderNavigation();
 }
 function renderEditor() {
   const focus = rememberFocus($('#editor-dialog'));
@@ -253,7 +255,7 @@ function saveEditor() {
 
 function openPicker(mode, p = null) {
   picker = { mode, position:p, search:'', attribute:'' };
-  $('#picker-dialog').innerHTML = `<header class="dialog-header"><h2 id="picker-title">${mode === 'block' ? 'Unavailable heroes' : mode === 'bans' ? 'Bans' : `Add hero · Position ${p}`}</h2>${iconButton('close-picker','Close hero picker','close')}</header><label class="search picker-search">${icon('search')}<input id="hero-search" type="search" placeholder="Find a hero…" aria-label="Find a hero" autocomplete="off" autofocus></label><div class="attribute-filters">${[['','All'],...ATTRIBUTES].map(([attr,label]) => button('attribute',label,'',`attribute-filter ${!attr ? 'active' : ''}`,`data-attribute="${attr}" aria-pressed="${!attr}"`)).join('')}</div><div id="hero-grid" class="hero-grid" aria-label="Heroes"></div>`;
+  $('#picker-dialog').innerHTML = `<header class="dialog-header"><h2 id="picker-title">${mode === 'block' ? 'Unavailable heroes' : mode === 'picked' ? 'Our picks' : mode === 'bans' ? 'Bans' : `Add hero · Position ${p}`}</h2>${iconButton('close-picker','Close hero picker','close')}</header><label class="search picker-search">${icon('search')}<input id="hero-search" type="search" placeholder="Find a hero…" aria-label="Find a hero" autocomplete="off" autofocus></label><div class="attribute-filters">${[['','All'],...ATTRIBUTES].map(([attr,label]) => button('attribute',label,'',`attribute-filter ${!attr ? 'active' : ''}`,`data-attribute="${attr}" aria-pressed="${!attr}"`)).join('')}</div><div id="hero-grid" class="hero-grid" aria-label="Heroes"></div>`;
   renderHeroGrid(); open('#picker-dialog'); $('#hero-search').focus();
 }
 function renderHeroGrid() {
@@ -262,11 +264,11 @@ function renderHeroGrid() {
     const group = list.filter(h => h.attribute === attribute);
     if (!group.length) return '';
     return `<section class="attribute-group" data-attribute="${attribute}" aria-label="${label}"><h3>${label}</h3><div class="hero-group-grid">${group.map(h => {
-      const selected = picker.mode === 'block' ? unavailable : new Set(picker.mode === 'bans' ? editor.draft.bans ?? [] : editor.draft[`pos${picker.position}`]);
+      const selected = picker.mode === 'block' ? unavailable : picker.mode==='picked' ? picked : new Set(picker.mode === 'bans' ? editor.draft.bans ?? [] : editor.draft[`pos${picker.position}`]);
       const chosen = selected.has(h.id);
-      const full = picker.mode === 'bans' ? selected.size >= MAX_BANS : picker.mode === 'edit' && selected.size >= MAX_HEROES;
+      const full = picker.mode === 'bans' ? selected.size >= MAX_BANS : picker.mode==='picked' ? selected.size>=5 : picker.mode === 'edit' && selected.size >= MAX_HEROES;
       const disabled = picker.mode === 'edit' && chosen || picker.mode !== 'block' && !chosen && full;
-      return `<button type="button" class="hero-tile ${chosen ? 'chosen' : ''} ${picker.mode === 'block' && chosen ? 'is-unavailable' : ''}" data-action="pick-hero" data-hero="${h.id}" aria-label="${esc(h.name)}" aria-pressed="${chosen}" ${disabled ? 'disabled' : ''}><div class="hero-tile-picture">${portrait(h.id)}</div><span class="hero-tile-name">${esc(h.name)}</span>${chosen ? `<b>${icon(picker.mode === 'block' ? 'ban' : 'check')}</b>` : ''}</button>`;
+      return `<button type="button" class="hero-tile ${chosen ? 'chosen' : ''} ${picker.mode === 'block' && chosen ? 'is-unavailable' : ''} ${picker.mode==='picked' && chosen ? 'is-picked' : ''}" data-action="pick-hero" data-hero="${h.id}" aria-label="${esc(h.name)}" aria-pressed="${chosen}" ${disabled ? 'disabled' : ''}><div class="hero-tile-picture">${portrait(h.id)}</div><span class="hero-tile-name">${esc(h.name)}</span>${chosen ? `<b>${icon(picker.mode === 'block' ? 'ban' : 'check')}</b>` : ''}</button>`;
     }).join('')}</div></section>`;
   }).join('') : '<p class="grid-empty">No matching heroes.</p>';
 }
@@ -274,6 +276,11 @@ function pickHero(hero, force = false) {
   if (!heroMap.has(hero)) return;
   if (picker.mode === 'block') {
     if (!force && unavailable.has(hero)) unavailable.delete(hero); else unavailable.add(hero);
+    picked.delete(hero);
+    refreshAvailability();
+  } else if (picker.mode==='picked') {
+    if(!force && picked.has(hero)) picked.delete(hero);
+    else if(picked.size<5) {picked.add(hero);unavailable.delete(hero);}
     refreshAvailability();
   } else if (picker.mode === 'bans') {
     const bans = editor.draft.bans ?? [];
@@ -289,8 +296,8 @@ function pickHero(hero, force = false) {
 }
 function closePicker() {
   close('#picker-dialog');
-  const root = picker.mode === 'block' ? ($('#detail-dialog').open ? $('#detail-dialog') : document) : $('#editor-dialog');
-  const selector = picker.mode === 'edit' ? `[data-action="add-hero"][data-position="${picker.position}"]` : picker.mode === 'bans' ? '[data-action="add-ban"]' : '[data-action="blocked"]';
+  const root = picker.mode === 'block' || picker.mode==='picked' ? ($('#detail-dialog').open ? $('#detail-dialog') : document) : $('#editor-dialog');
+  const selector = picker.mode === 'edit' ? `[data-action="add-hero"][data-position="${picker.position}"]` : picker.mode === 'bans' ? '[data-action="add-ban"]' : picker.mode==='picked' ? '[data-action="picked"]' : '[data-action="blocked"]';
   const target = $(selector,root);
   (target && !target.disabled ? target : $('#draft-title') || $('[data-action="close-detail"]'))?.focus(); picker = null;
 }
@@ -304,6 +311,20 @@ function showGithub(d) {
   const tooLong = url?.length > 12000;
   const fallback = `https://github.com/${config.repository}/new/${encodeURIComponent(config.branch)}?filename=${encodeURIComponent(`data/drafts/${d.id}.json`)}`;
   utility('Save to GitHub',`<div class="utility-body"><p>${existing || tooLong ? 'Copy the JSON and replace the file contents on GitHub.' : 'Review and commit the draft on GitHub.'}</p><div class="button-row">${existing || tooLong ? button('copy-json','Copy JSON','copy','secondary',`data-id="${d.id}"`) : ''}<a class="button primary" href="${esc(tooLong ? fallback : url)}" target="_blank" rel="noopener noreferrer">${icon('external')}Open GitHub</a></div></div>`);
+}
+async function saveGithub(draft) {
+  if(savingId)return;
+  if(!publishingToken(publishing)){showGithub(draft);return;}
+  const saved=cleanDraft(draft);
+  savingId=saved.id;
+  if($('#detail-dialog').open)showDetail(selectedId,false);
+  try {
+    await submitDraft(config,publishing,saved,repoDrafts.find(d=>d.id===saved.id));
+    repoDrafts=[...repoDrafts.filter(d=>d.id!==saved.id),saved];
+    localDrafts=localDrafts.filter(d=>d.id!==saved.id || JSON.stringify(cleanDraft(d))!==JSON.stringify(saved));
+    write('local',localDrafts);toast('Saved to GitHub.');
+  } catch(error) {toast(error.message,true);}
+  finally {savingId=null;renderContent();if($('#detail-dialog').open)showDetail(selectedId,false);}
 }
 
 function renderMatches() {
@@ -341,9 +362,6 @@ async function addMatch() {
   } catch (error) { $('#match-add-error').hidden=false; $('#match-add-error').textContent=`${error.message} If team detection failed, select Radiant or Dire.`; }
   finally { if(el.isConnected) {el.disabled=false;el.textContent='Load match';} }
 }
-function showHelp() {
-  utility('Keyboard shortcuts',`<div class="utility-body shortcuts">${[['/','Search'],['Ctrl / ⌘ K','Search'],['N','New draft'],['J / K','Next / previous draft'],['Enter','Open focused draft'],['1–5','Focus a position in draft view'],['Esc','Close the current dialog'],['?','Show shortcuts']].map(([key,label])=>`<div><span>${label}</span><kbd>${key}</kbd></div>`).join('')}<p class="muted small-text">Tab moves between controls. In the hero picker, use arrow keys to move between heroes and Enter to choose.</p></div>`);
-}
 
 document.addEventListener('input',event=>{
   const el=event.target;
@@ -356,19 +374,20 @@ document.addEventListener('input',event=>{
     saveRecovery();
   }
 });
-document.addEventListener('change',event=>{if(event.target.id==='position-filter'){position=event.target.value;renderContent();}});
 document.addEventListener('click',async event=>{
   const el=event.target.closest('[data-action]'); if(!el || el.disabled)return;
   const a=el.dataset.action, id=el.dataset.id, hero=el.dataset.hero, p=Number(el.dataset.position), i=Number(el.dataset.index);
   if(a==='reload')location.reload();
-  else if(a==='view-drafts' || a==='view-matches'){view=a==='view-drafts'?'drafts':'matches';query='';onlyFavorites=false;$('#search').value='';renderContent();if(view==='matches')refreshMatches();}
-  else if(a==='filter-favorites'){view='drafts';onlyFavorites=!onlyFavorites;tag='';renderContent();}
-  else if(a==='tag'){view='drafts';tag=tag===el.dataset.tag?'':el.dataset.tag;renderContent();}
-  else if(a==='clear-filters'){query='';tag='';onlyFavorites=false;position='';$('#search').value='';$('#position-filter').value='';renderContent();}
+  else if(a==='view-drafts' || a==='view-matches'){view=a==='view-drafts'?'drafts':'matches';query='';onlyFavorites=false;$('#search').value='';renderContent();$('#search').focus();if(view==='matches')refreshMatches();}
+  else if(a==='filter-favorites'){view='drafts';onlyFavorites=!onlyFavorites;renderContent();$('#search').focus();}
+  else if(a==='clear-filters'){query='';onlyFavorites=false;$('#search').value='';renderContent();$('#search').focus();}
   else if(a==='favorite'){favorites.has(id)?favorites.delete(id):favorites.add(id);write('favorites',[...favorites]);renderContent();if($('#detail-dialog').open)showDetail(selectedId,false);}
   else if(a==='detail')showDetail(id);
   else if(a==='close-detail')closeDetail();
   else if(a==='blocked')openPicker('block');
+  else if(a==='picked')openPicker('picked');
+  else if(a==='unpick'){picked.delete(hero);refreshAvailability();}
+  else if(a==='clear-picked'){picked.clear();refreshAvailability();}
   else if(a==='unblock' || a==='toggle-blocked'){unavailable.has(hero)?unavailable.delete(hero):unavailable.add(hero);refreshAvailability();}
   else if(a==='clear-blocked'){unavailable.clear();refreshAvailability();}
   else if(a==='choose'){
@@ -385,10 +404,11 @@ document.addEventListener('click',async event=>{
     utility('Discard unfinished changes?',`<div class="utility-body"><p>Your last saved draft is kept. Unfinished editor changes will be removed.</p><div class="button-row">${button('close-utility','Keep editing','','secondary')}${button('confirm-discard','Discard changes','','primary')}</div></div>`);
   }
   else if(a==='confirm-discard'){forget('editor');editor=null;close('#utility-dialog');close('#editor-dialog');renderNavigation();}
+  else if(a==='discard-recovery'){forget('editor');renderNavigation();$('#search').focus();}
   else if(a==='recover'){
     const saved=read('editor',null);
     if(!saved?.draft || !POSITIONS.every(p=>Array.isArray(saved.draft[`pos${p}`]) && saved.draft[`pos${p}`].every(h=>heroMap.has(h)))){toast('The unfinished draft could not be restored.',true);return;}
-    closeDetail();editor=saved;renderEditor();open('#editor-dialog');
+    closeDetail();editor=saved;renderEditor();open('#editor-dialog');renderNavigation();$('#draft-title').focus();
   }
   else if(a==='save-editor')saveEditor();
   else if(a==='add-hero')openPicker('edit',p);
@@ -402,7 +422,7 @@ document.addEventListener('click',async event=>{
   else if(a==='assign-suggestion')utility('Assign position',`<div class="utility-body"><p>${esc(heroMap.get(hero).name)}</p><div class="assign-positions">${POSITIONS.map(pos=>button('assign-position',`<b>${pos}</b>${ROLES[pos-1]}`,'','secondary',`data-position="${pos}" data-hero="${hero}" ${editor.draft[`pos${pos}`].length>=MAX_HEROES?'disabled':''}`)).join('')}</div></div>`);
   else if(a==='assign-position'){editor.draft[`pos${p}`].push(hero);saveRecovery();close('#utility-dialog');renderEditor();}
   else if(a==='copy-lineup'){try{await copyText(lineupText(location.href,getDraft(selectedId),choices,heroMap));}catch(error){toast(error.message,true);}}
-  else if(a==='github-detail')showGithub(getDraft(selectedId));
+  else if(a==='github-detail')saveGithub(getDraft(selectedId));
   else if(a==='remove-local'){
     const published=repoDrafts.some(r=>r.id===id);
     utility('Discard saved changes?',`<div class="utility-body"><p>${published?'Restore the draft from GitHub?':'Remove this draft?'}</p><div class="button-row">${button('close-utility','Cancel','','secondary')}${button('confirm-remove-local','Discard','','primary',`data-id="${id}"`)}</div></div>`);
@@ -412,7 +432,6 @@ document.addEventListener('click',async event=>{
     localDrafts=next;forget('editor');editor=null;close('#utility-dialog');close('#editor-dialog');closeDetail();renderContent();
   }
   else if(a==='copy-json')await copyText(JSON.stringify(cleanDraft(getDraft(id)),null,2)+'\n','JSON');
-  else if(a==='help')showHelp();
   else if(a==='close-utility')close('#utility-dialog');
   else if(a==='refresh-matches')refreshMatches(true);
   else if(a==='add-match')showAddMatch();

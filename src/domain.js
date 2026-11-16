@@ -45,6 +45,12 @@ export function matchesSearch(draft, query, heroes, position = '') {
   return normalizeText(query).split(' ').filter(Boolean).every(token => text.includes(token));
 }
 
+export function pickedFit(draft, picked) {
+  const pool = new Set(POSITIONS.flatMap(p => draft[`pos${p}`]));
+  const matched = [...picked].filter(id => pool.has(id));
+  return { matched, missing: [...picked].filter(id => !pool.has(id)), count: matched.length, total: picked.size };
+}
+
 // Find a complete, unique lineup in priority order. Greedy selection fails for flex heroes.
 export function resolveLineup(draft, unavailable = new Set(), required = {}) {
   const selected = {};
@@ -92,7 +98,8 @@ export function lineupText(baseUrl, draft, choices, heroes) {
   if (!lineup) throw new Error('Choose five different heroes before copying.');
   const url = new URL(baseUrl); url.hash = draftHash(draft.id, lineup);
   const lines = POSITIONS.map(p => `pos ${p}: ${heroes.get(lineup[p])?.name || lineup[p]}`);
-  return `${url.href}\n${lines[0]}\n${lines[1]}\n\n${lines[2]}\n\n${lines[3]}\n${lines[4]}`;
+  const title = draft.title.replace(/[\\\[\]()*_~`|]/g, '\\$&').replace(/[\r\n]/g, ' ');
+  return `[${title}](<${url.href}>)\n${lines[0]}\n${lines[1]}\n\n${lines[2]}\n\n${lines[3]}\n${lines[4]}`;
 }
 
 export function githubCreateUrl(config, draft) {

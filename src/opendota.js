@@ -34,15 +34,16 @@ export async function loadTeamMatches(config, { onProgress = () => {}, fetcher =
   const details = new Map();
   // OpenDota's team table excludes some amateur leagues. Public player histories
   // still contain their tournament games; verify the team ID in every candidate.
-  if (!summaries.length && config.historyMatchId) {
+  const anchorId = previous?.teamId === config.teamId ? previous.matches?.filter(m=>m.complete).sort((a,b)=>b.id-a.id)[0]?.id || config.historyMatchId : config.historyMatchId;
+  if (!summaries.length && anchorId) {
     try {
       await delay(1100);
-      const anchor = await api(`/matches/${config.historyMatchId}`, fetcher);
+      const anchor = await api(`/matches/${anchorId}`, fetcher);
       const radiant = Number(anchor.radiant_team_id) === config.teamId;
       if (!radiant && Number(anchor.dire_team_id) !== config.teamId) throw new Error('The history match does not belong to this team.');
-      details.set(config.historyMatchId,anchor);
+      details.set(anchorId,anchor);
       const roster = [...new Set((anchor.players ?? []).filter(p => (p.player_slot < 128) === radiant && Number.isSafeInteger(p.account_id) && p.account_id > 0).map(p => p.account_id))].slice(0,5);
-      const candidates = new Map([[config.historyMatchId,{match_id:config.historyMatchId,discovered:true}]]);
+      const candidates = new Map([[anchorId,{match_id:anchorId,discovered:true}]]);
       let readHistory = false;
       for (const accountId of roster) {
         await delay(1100);

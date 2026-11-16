@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { validateDraft } from '../src/domain.js';
+import { obscureToken } from './public-dispatch.mjs';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
 export async function build() {
@@ -44,6 +45,7 @@ export async function build() {
   await cp(path.join(root, 'assets'), path.join(out, 'assets'), { recursive: true });
   for (const file of ['config.json', 'heroes.json', 'matches.json']) await cp(path.join(root, 'data', file), path.join(out, 'data', file));
   await writeFile(path.join(out, 'data/drafts.json'), `${JSON.stringify(drafts)}\n`);
+  await writeFile(path.join(out,'data/publishing.json'),JSON.stringify(obscureToken(process.env.PUBLIC_DRAFT_DISPATCH_TOKEN || '')));
   await writeFile(path.join(out, '.nojekyll'), '');
   console.log(`Built ${drafts.length} drafts and ${heroes.length} heroes → dist/`);
 }
