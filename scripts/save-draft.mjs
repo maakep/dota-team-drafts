@@ -26,6 +26,7 @@ export async function saveDraft(json,previous='',root=projectRoot) {
     const fingerprint=createHash('sha256').update(JSON.stringify(cleanDraft(existing))).digest('hex');
     if(previous!==fingerprint)throw new Error('Draft changed on GitHub. Reload before saving.');
   } else if(previous) throw new Error('The original draft no longer exists.');
+  if(existing && JSON.stringify(cleanDraft(existing))===JSON.stringify(draft))return {id:draft.id,changed:false};
   const output=`${JSON.stringify(draft,null,2)}\n`;
   await writeFile(target,output);
   return {id:draft.id,changed:!existing || JSON.stringify(cleanDraft(existing))!==JSON.stringify(draft)};

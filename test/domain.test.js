@@ -1,11 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { POSITIONS, validateDraft, cleanDraft, matchesSearch, resolveLineup, preferredLineup, draftHash, parseDraftHash, lineupText, githubCreateUrl, extractMatch } from '../src/domain.js';
+import { POSITIONS, validateDraft, cleanDraft, matchesSearch, pickedFit, resolveLineup, preferredLineup, draftHash, parseDraftHash, lineupText, githubCreateUrl, extractMatch } from '../src/domain.js';
 
 const catalog = JSON.parse(await readFile(new URL('../data/heroes.json', import.meta.url), 'utf8'));
 const heroes = new Map(catalog.map((h) => [h.id, h]));
 const draft = () => ({ id: 'test-draft', title: 'Fight at twenty', tags: ['teamfight'], pos1: ['luna', 'sven'], pos2: ['puck', 'luna'], pos3: ['axe'], pos4: ['rubick'], pos5: ['lich'] });
+
+test('picked hero fit counts backups across positions without excluding partial drafts',()=>{
+  const own=new Set(['crystal_maiden','largo']);
+  const full={...draft(),pos4:['rubick','largo'],pos5:['crystal_maiden']};
+  const partial={...draft(),pos5:['crystal_maiden']};
+  assert.equal(pickedFit(full,own).count,2);
+  assert.deepEqual(pickedFit(partial,own).missing,['largo']);
+  assert.equal(pickedFit(draft(),own).count,0);
+});
 
 test('draft files accept optional notes and tags, and flex alternatives', () => {
   assert.deepEqual(validateDraft(draft(), heroes), []);

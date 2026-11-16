@@ -104,17 +104,14 @@ async function boot() {
 
 function renderShell() {
   document.title = `Drafts · ${config.teamName || 'dota-team-drafts'}`;
-  $('#app').innerHTML = `<aside class="sidebar">
-    <a class="brand" href="#" aria-label="${esc(config.teamName || 'Draft library')}" title="${esc(config.teamName || 'Draft library')}"><img src="./assets/icon.svg" alt="" width="30" height="30"></a>
-    <nav aria-label="Main navigation">
-      ${iconButton('view-drafts','Drafts','grid','nav-button',`data-view="drafts"`)}
-      ${iconButton('view-matches','Matches','history','nav-button',`data-view="matches"`)}
-      ${iconButton('filter-favorites','Starred drafts','star','nav-button',`aria-pressed="false"`)}
-    </nav>
-  </aside>
-  <main id="main" tabindex="-1" class="main">
+  $('#app').innerHTML = `<main id="main" tabindex="-1" class="main">
     <h1 id="page-title" class="sr-only">Drafts</h1>
-    <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search drafts, heroes, tags…" autocomplete="off" aria-label="Search drafts, heroes and tags"></label><div id="header-actions"></div></div>
+    <header class="workspace-header"><nav class="tabs" aria-label="Main navigation">
+      ${button('view-drafts','Drafts','grid','nav-button',`data-view="drafts"`)}
+      ${button('view-matches','Matches','history','nav-button',`data-view="matches"`)}
+      ${iconButton('filter-favorites','Starred drafts','star','nav-button',`aria-pressed="false"`)}
+    </nav><div id="header-actions"></div></header>
+    <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search drafts, heroes, tags…" autocomplete="off" aria-label="Search drafts, heroes and tags"></label></div>
     <div id="session-bar" class="session-bar"></div>
     <section id="content" aria-label="Draft library"></section>
     <footer class="main-footer"><span id="result-count" aria-live="polite"></span></footer>
@@ -445,22 +442,22 @@ document.addEventListener('click',async event=>{
 document.addEventListener('keydown',event=>{
   const el=event.target, typing=el.matches('input,textarea,select,[contenteditable="true"]');
   const topDialog=['#utility-dialog','#picker-dialog','#editor-dialog','#detail-dialog'].find(s=>$(s).open);
-  if((event.ctrlKey || event.metaKey) && event.key.toLowerCase()==='k' && (!topDialog || topDialog==='#picker-dialog')){event.preventDefault();$(topDialog ? '#hero-search' : '#search')?.focus();return;}
   if(topDialog==='#picker-dialog' && el.id==='hero-search' && event.key==='Enter' && !event.isComposing){
-    event.preventDefault();const first=$$('.hero-tile:not(:disabled)').find(tile=>picker.mode==='block' ? !unavailable.has(tile.dataset.hero) : picker.mode==='bans' ? !editor.draft.bans?.includes(tile.dataset.hero) : true);if(first)pickHero(first.dataset.hero,true);return;
+    event.preventDefault();const first=$$('.hero-tile:not(:disabled)').find(tile=>picker.mode==='block' ? !unavailable.has(tile.dataset.hero) : picker.mode==='picked' ? !picked.has(tile.dataset.hero) : picker.mode==='bans' ? !editor.draft.bans?.includes(tile.dataset.hero) : true);if(first)pickHero(first.dataset.hero,true);return;
   }
-  if(event.key==='Escape' && !topDialog && el.id==='search'){el.value='';query='';renderContent();el.blur();return;}
-  if(topDialog==='#picker-dialog' && ['ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(event.key)){
-    const tiles=$$('.hero-tile:not(:disabled)');const current=tiles.indexOf(el);const grid=el.closest('.hero-group-grid') || $('.hero-group-grid');const width=tiles[0]?.getBoundingClientRect().width || 120;const cols=Math.max(1,Math.round((grid?.clientWidth || 800)/(width+8)));
-    if(current>=0 || el.id==='hero-search' && event.key==='ArrowDown'){event.preventDefault();const delta={ArrowDown:cols,ArrowUp:-cols,ArrowLeft:-1,ArrowRight:1}[event.key];tiles[Math.max(0,Math.min(tiles.length-1,current<0?0:current+delta))]?.focus();}return;
-  }
-  if(typing || event.ctrlKey || event.metaKey || event.altKey)return;
-  if(topDialog){if(topDialog==='#detail-dialog' && /^[1-5]$/.test(event.key)){event.preventDefault();$(`.detail-position[data-position="${event.key}"] .hero-choice:not(:disabled)`)?.focus();}return;}
-  if(event.key==='/'){event.preventDefault();$('#search')?.focus();}
-  else if(event.key.toLowerCase()==='n'){event.preventDefault();openEditor();}
-  else if(event.key==='?'){event.preventDefault();showHelp();}
-  else if(['j','k'].includes(event.key.toLowerCase()) && view==='drafts'){
-    event.preventDefault();const cards=$$('.draft-title');const index=cards.indexOf(document.activeElement);cards[Math.max(0,Math.min(cards.length-1,index+(event.key.toLowerCase()==='j'?1:-1)))]?.focus();
+  if(event.key==='Escape' && !topDialog){event.preventDefault();query='';$('#search').value='';renderContent();$('#search').focus();return;}
+  if(typing || event.isComposing)return;
+  const search=topDialog==='#picker-dialog' ? $('#hero-search') : !topDialog ? $('#search') : null;
+  if(!search)return;
+  if((event.ctrlKey || event.metaKey) && event.key.toLowerCase()==='v'){search.focus();return;}
+  if(event.ctrlKey || event.metaKey || event.altKey)return;
+  if(event.key.length===1 || event.key==='Backspace' || event.key==='Delete'){
+    event.preventDefault();search.focus({preventScroll:true});
+    let start=search.selectionStart ?? search.value.length,end=search.selectionEnd ?? start;
+    if(event.key==='Backspace' && start===end)start=Math.max(0,start-1);
+    if(event.key==='Delete' && start===end)end=Math.min(search.value.length,end+1);
+    search.setRangeText(event.key.length===1 ? event.key : '',start,end,'end');
+    search.dispatchEvent(new Event('input',{bubbles:true}));
   }
 });
 $('#detail-dialog').addEventListener('cancel',event=>{event.preventDefault();closeDetail();});
