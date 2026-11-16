@@ -18,7 +18,11 @@ export async function submitDraft(publishing, draft, previous, {fetcher=fetch, d
     method:'POST',headers:{...headers,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000),
     body:JSON.stringify({draft:cleanDraft(draft),previous:previous ? await draftFingerprint(previous) : ''})
   });
-  if (!response.ok) throw new Error(`Could not submit the draft (HTTP ${response.status}).`);
+  if (!response.ok) {
+    const details=await response.json().catch(()=>null);
+    const message=typeof details?.error==='string' ? details.error.slice(0,600) : `Could not submit the draft (HTTP ${response.status}).`;
+    throw new Error(message);
+  }
   const run = await response.json();
   if (!Number.isSafeInteger(run.id)) throw new Error('The save service did not return a run ID.');
   onProgress('Saving…',run.url);

@@ -76,6 +76,8 @@ The build publishes no GitHub credentials. The earlier public-token experiment h
 
 For direct saving, set `publishEndpoint` in `data/config.json` to an HTTPS relay URL. The relay keeps the repo-only Actions credential server-side, accepts a validated draft at `POST /draft`, dispatches only `save-draft.yml` on `main`, and returns `{ "id": <run ID>, "url": <run URL> }`. `GET /runs/<id>` returns its status and conclusion. The browser sends no GitHub token. The build permits that relay's origin in the content security policy. Without a relay, the GitHub editor handoff stays available.
 
+The included [Cloudflare Worker](relay/README.md) implements this relay on Workers Free, with draft validation, bounded request sizes and per-IP rate limits. Its `GITHUB_ACTIONS_TOKEN` secret is configured in Cloudflare; it is never part of the site build.
+
 The save workflow receives JSON through an environment variable, validates size and hero IDs, strips unknown fields, and writes only `data/drafts/<validated-id>.json`. The relay's credential needs only Actions access; the workflow uses its own `GITHUB_TOKEN` to commit. An existing draft requires its previous content fingerprint so simultaneous edits cannot silently overwrite one another. Save and refresh jobs share a concurrency group.
 
 ```sh

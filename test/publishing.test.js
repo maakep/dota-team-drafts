@@ -52,5 +52,6 @@ test('browser dispatch sends JSON inputs and waits for confirmed success',async(
 test('failed dispatch or run never reports a successful save',async()=>{
   const pub={endpoint:'https://relay.example'};
   await assert.rejects(submitDraft(pub,draft(),null,{fetcher:async()=>new Response('',{status:403})}),/submit/);
+  await assert.rejects(submitDraft(pub,draft(),null,{fetcher:async()=>Response.json({error:'Too many requests. Try again in a minute.'},{status:429})}),/Too many requests/);
   await assert.rejects(submitDraft(pub,draft(),null,{fetcher:async(url,options)=>new Response(JSON.stringify(options.method==='POST'?{id:1}:{status:'completed',conclusion:'failure'})),delay:async()=>{}}),/not saved/);
 });

@@ -3,7 +3,7 @@
   "title": "Early pressure",
   "description": "Get all the towers. Supports are whatever",
   "tags": ["deathball", "push"],
-  "pos1": ["natures_prophet", "tiny", "lone_druid", "sniper", "alchemist"],
+  "pos1": ["furion", "tiny", "lone_druid", "sniper", "alchemist"],
   "pos2": ["dragon_knight", "lina", "leshrac"],
   "pos3": ["centaur", "death_prophet", "dark_seer", "enigma", "pudge"],
   "pos4": ["witch_doctor", "pugna", "keeper_of_the_light"],
