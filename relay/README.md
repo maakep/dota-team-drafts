@@ -2,6 +2,8 @@
 
 This Cloudflare Worker dispatches `save-draft.yml` on `main` in `maakep/dota-team-drafts`. It keeps the GitHub credential in a Worker secret. The Pages site receives only the Worker URL.
 
+Deployed address: https://dota-draft-relay.maakep.workers.dev
+
 ## Deploy
 
 Use Node.js 22 or newer. From this directory:

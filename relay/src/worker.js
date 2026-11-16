@@ -59,7 +59,7 @@ export async function handleRequest(request,env,{fetcher=fetch}={}){
       'User-Agent':'dota-team-drafts-relay'
     };
     const github=async(path,options={})=>{
-      const response=await fetcher(`https://api.github.com/repos/${repository}${path}`,{...options,headers:{...headers,...options.headers},signal:AbortSignal.timeout(15000),redirect:'error'});
+      const response=await fetcher(`https://api.github.com/repos/${repository}${path}`,{...options,headers:{...headers,...options.headers},signal:AbortSignal.timeout(15000),redirect:'manual'});
       if(!response.ok)throw new RequestError(502,'GitHub could not process the request. Check the relay token and try again.');
       try{return await response.json();}catch{throw new RequestError(502,'GitHub returned an unexpected response.');}
     };
@@ -92,6 +92,8 @@ export async function handleRequest(request,env,{fetcher=fetch}={}){
     throw new RequestError(404,'Not found.');
   }catch(error){
     if(error instanceof RequestError)return reply({error:error.message},error.status,error.status===429 ? {'Retry-After':'60'} : {});
+    const detail=String(error?.message || 'Unknown error').replaceAll(env.GITHUB_ACTIONS_TOKEN || '\u0000','[redacted]').slice(0,600);
+    console.error('Draft relay request failed:',error?.name,detail);
     return reply({error:'The save service is temporarily unavailable.'},503);
   }
 }

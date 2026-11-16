@@ -3,6 +3,7 @@
   "teamName": "De 4 clownerna och Poppe",
   "repository": "maakep/dota-team-drafts",
   "branch": "main",
+  "publishEndpoint": "https://dota-draft-relay.maakep.workers.dev",
   "historyMatchId": 9082244244,
   "manualMatches": []
 }

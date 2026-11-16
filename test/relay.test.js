@@ -65,7 +65,7 @@ test('relay dispatches only the fixed workflow and keeps the token server-side',
   assert.equal(calls.length,1);
   assert.equal(calls[0].url,'https://api.github.com/repos/maakep/dota-team-drafts/actions/workflows/save-draft.yml/dispatches');
   assert.equal(calls[0].options.headers.Authorization,`Bearer ${credential}`);
-  assert.equal(calls[0].options.redirect,'error');
+  assert.equal(calls[0].options.redirect,'manual');
   const payload=JSON.parse(calls[0].options.body);
   assert.deepEqual(payload,{ref:'main',inputs:{draft:JSON.stringify(draft()),previous:'a'.repeat(64)}});
 });
@@ -101,4 +101,17 @@ test('relay masks upstream errors and rejects missing dispatch run IDs',async()=
     assert.ok(response.status>=500);
     assert.equal((await response.text()).includes(credential),false);
   }
+});
+
+test('relay does not follow upstream redirects with its credential',async()=>{
+  let calls=0;
+  const response=await handleRequest(request(),environment(),{fetcher:async(url,options)=>{
+    calls++;
+    assert.equal(new URL(url).origin,'https://api.github.com');
+    assert.equal(options.redirect,'manual');
+    return new Response(null,{status:302,headers:{Location:'https://example.com/collect'}});
+  }});
+  assert.equal(response.status,502);
+  assert.equal(calls,1);
+  assert.equal((await response.text()).includes(credential),false);
 });
