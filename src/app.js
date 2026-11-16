@@ -1,4 +1,4 @@
-import { POSITIONS, ROLES, MAX_HEROES, validateDraft, cleanDraft, normalizeText, matchesSearch, resolveLineup, githubCreateUrl } from './domain.js';
+import { POSITIONS, ROLES, MAX_HEROES, MAX_BANS, MATCH_LIMIT, ATTRIBUTES, validateDraft, cleanDraft, normalizeText, matchesSearch, resolveLineup, preferredLineup, draftHash, parseDraftHash, lineupText, githubCreateUrl } from './domain.js';
 import { loadTeamMatches, loadSingleMatch } from './opendota.js';
 
 const $ = (s, root = document) => root.querySelector(s);
@@ -10,12 +10,8 @@ const icons = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/>',
-  chevron: '<path d="m9 5 7 7-7 7"/>',
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
-  arrow: '<path d="M19 12H5m6-6-6 6 6 6"/>',
-  upload: '<path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/>',
   download: '<path d="M12 3v13m-5-5 5 5 5-5M4 15v5h16v-5"/>',
-  settings: '<path d="m10 3-1 3-3 1-3 3 2 2-1 4 3 3 3-1 2 3 4-1 1-3 3-1 1-4-3-2 1-3-3-2-3 1Z"/><circle cx="12" cy="12" r="3"/>',
   keyboard: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h1m3 0h1m3 0h1m3 0h1M6 13h1m3 0h1m3 0h1m3 0h1M7 16h10"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   ban: '<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>',
@@ -31,11 +27,11 @@ const button = (action, label, glyph, cls = '', attrs = '') => `<button type="bu
 const iconButton = (action, label, glyph, cls = '', attrs = '') => button(action, '', glyph, `icon-button ${cls}`, `aria-label="${esc(label)}" title="${esc(label)}" ${attrs}`);
 const storageWarnings = [];
 function read(key, fallback) { try { const v = localStorage.getItem(`drafts:${key}`); return v === null ? fallback : JSON.parse(v); } catch { storageWarnings.push('Browser storage could not be read.'); return fallback; } }
-function write(key, value) { try { localStorage.setItem(`drafts:${key}`, JSON.stringify(value)); return true; } catch { toast('Browser storage is unavailable or full. Export your JSON to keep it.', true); return false; } }
+function write(key, value) { try { localStorage.setItem(`drafts:${key}`, JSON.stringify(value)); return true; } catch { toast('Could not save changes in this browser.', true); return false; } }
 function forget(key) { try { localStorage.removeItem(`drafts:${key}`); } catch {} }
 let config, baseConfig, heroes, heroMap, heroByNumber, repoDrafts, localDrafts = [], favorites = new Set();
-let view = 'drafts', query = '', tag = '', onlyFavorites = false, position = '', source = 'all';
-let unavailable = new Set(), locks = {}, selectedId = null, editor = null, picker = null, busy = false, matchData, matchError = '';
+let view = 'drafts', query = '', tag = '', onlyFavorites = false, position = '';
+let unavailable = new Set(), choices = {}, selectedId = null, editor = null, picker = null, busy = false, matchData, matchError = '';
 let toastTimer;
 
 function toast(message, error = false) {
@@ -76,21 +72,25 @@ function utility(title, content, cls = '') {
 async function boot() {
   try {
     const responses = await Promise.all(['config','heroes','drafts','matches'].map(async file => {
-      const response = await fetch(`./data/${file}.json`);
+      const response = await fetch(`./data/${file}.json`,{cache:'no-cache'});
       if (!response.ok) throw new Error(`Could not load ${file}.json.`);
       return response.json();
     }));
     [baseConfig, heroes, repoDrafts, matchData] = responses;
-    config = { ...baseConfig, ...read('config', {}) };
+    config = { ...baseConfig };
     heroMap = new Map(heroes.map(h => [h.id, h])); heroByNumber = new Map(heroes.map(h => [h.heroId, h]));
     const saved = read('local', []);
     localDrafts = Array.isArray(saved) ? saved.filter(d => !validateDraft(d, heroMap).length).map(cleanDraft) : [];
-    if (!Array.isArray(saved) || saved.length !== localDrafts.length) storageWarnings.push('Some saved drafts are invalid. Export browser data before clearing it.');
+    if (!Array.isArray(saved) || saved.length !== localDrafts.length) storageWarnings.push('Some saved drafts could not be loaded.');
     const pinned = read('favorites', []); favorites = new Set(Array.isArray(pinned) ? pinned.filter(id => typeof id === 'string') : []);
     const blocked = read('unavailable', []); unavailable = new Set(Array.isArray(blocked) ? blocked.filter(h => heroMap.has(h)) : []);
     const cached = read(`matches:${config.teamId}`, null);
-    if (cached?.teamId === config.teamId && Array.isArray(cached.matches)) matchData = cached;
     if (matchData.teamId !== config.teamId) matchData = { teamId: config.teamId, matches: [] };
+    if (cached?.teamId === config.teamId && Array.isArray(cached.matches)) {
+      const cachedIsNewer = Date.parse(cached.updatedAt || '') > Date.parse(matchData.updatedAt || '');
+      const combined = new Map((cachedIsNewer ? [...matchData.matches,...cached.matches] : [...cached.matches,...matchData.matches]).map(m=>[m.id,m]));
+      matchData = {...(cachedIsNewer ? cached : matchData),matches:[...combined.values()].sort((a,b)=>b.id-a.id).slice(0,MATCH_LIMIT)};
+    }
     renderShell();
     readHash();
     if (storageWarnings.length) toast(storageWarnings.join(' '), true);
@@ -108,20 +108,17 @@ function renderShell() {
       ${button('view-drafts','Drafts','grid','nav-button',`data-view="drafts"`)}
       ${button('view-matches','Matches','history','nav-button',`data-view="matches"`)}
     </nav>
-    <section class="collections" aria-label="Draft filters"><h2>Library</h2><div id="collections"></div><h2>Tags</h2><div id="tags"></div></section>
+    <section class="collections" aria-label="Draft filters"><div id="collections"></div><h2>Tags</h2><div id="tags"></div></section>
     <div class="sidebar-bottom"><div id="recovery"></div>
-      ${button('import','Import JSON','upload','quiet sidebar-link')}
-      ${button('export-all','Export library','download','quiet sidebar-link')}
-      <div class="sidebar-tools">${button('settings','Settings','settings','quiet')}${iconButton('help','Keyboard shortcuts (?)','keyboard')}</div>
-      <span class="storage-note"><span class="status-dot"></span>JSON files + browser drafts</span>
+      <div class="sidebar-tools">${button('help','Shortcuts','keyboard','quiet')}</div>
     </div>
   </aside>
   <main id="main" tabindex="-1" class="main">
-    <header class="page-header"><div class="page-title"><span class="mobile-brand">Dota drafts /</span><h1 id="page-title">Drafts</h1><span id="total-count" class="count"></span></div><div id="header-actions"></div></header>
-    <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search drafts, heroes, tags…" autocomplete="off" aria-label="Search drafts, heroes and tags"><kbd>/</kbd></label><select id="position-filter" aria-label="Search hero in position"><option value="">Any position</option>${POSITIONS.map(p => `<option value="${p}">Pos ${p} · ${ROLES[p-1]}</option>`).join('')}</select>${iconButton('help','Keyboard shortcuts (?)','keyboard','toolbar-help')}</div>
+    <header class="page-header"><div class="page-title"><h1 id="page-title">Drafts</h1><span id="total-count" class="count"></span></div><div id="header-actions"></div></header>
+    <div class="toolbar"><label class="search">${icon('search')}<input id="search" type="search" placeholder="Search drafts, heroes, tags…" autocomplete="off" aria-label="Search drafts, heroes and tags"><kbd>/</kbd></label><select id="position-filter" aria-label="Search hero in position"><option value="">Any position</option>${POSITIONS.map(p => `<option value="${p}">Pos ${p} · ${ROLES[p-1]}</option>`).join('')}</select></div>
     <div id="session-bar" class="session-bar"></div>
     <section id="content" aria-label="Draft library"></section>
-    <footer class="main-footer"><span id="result-count" aria-live="polite"></span><span><kbd>N</kbd> new draft <span class="footer-dot">·</span> <kbd>?</kbd> shortcuts</span></footer>
+    <footer class="main-footer"><span id="result-count" aria-live="polite"></span></footer>
   </main>`;
   $('#search').value = query; $('#position-filter').value = position;
   renderNavigation(); renderContent();
@@ -129,9 +126,7 @@ function renderShell() {
 function renderNavigation() {
   const drafts = allDrafts();
   $('#collections').innerHTML = [
-    ['all','All drafts','grid',drafts.length,!onlyFavorites && source === 'all'],
     ['favorites','Starred','star',drafts.filter(d => favorites.has(d.id)).length,onlyFavorites],
-    ['local','On this browser','edit',drafts.filter(d => d._source !== 'repo').length,source === 'local'],
   ].map(([action,label,glyph,count,active]) => button(`filter-${action}`,`<span>${label}</span><span class="nav-count">${count}</span>`,glyph,`nav-button small ${active ? 'active' : ''}`,`aria-pressed="${active}"`)).join('');
   const tags = [...new Set(drafts.flatMap(d => d.tags ?? []))].sort();
   $('#tags').innerHTML = tags.length ? tags.map(t => button('tag',`<span class="tag-dot"></span><span>${esc(t)}</span><span class="nav-count">${drafts.filter(d => d.tags?.includes(t)).length}</span>`,'',`tag-filter ${tag === t ? 'active' : ''}`,`data-tag="${esc(t)}" aria-pressed="${tag === t}"`)).join('') : '<span class="muted small-text">No tags yet</span>';
@@ -142,11 +137,11 @@ function renderSessionBar() {
   const el = $('#session-bar');
   el.innerHTML = `${button('blocked',`${icon('ban')}<span>Unavailable heroes</span>${unavailable.size ? `<strong>${unavailable.size}</strong>` : ''}`,'','unavailable-button')}
     <div class="blocked-chips">${[...unavailable].map(id => button('unblock',`${portrait(id)}<span>${esc(heroMap.get(id).name)}</span>${icon('close')}`,'','blocked-chip',`data-hero="${id}" aria-label="Make ${esc(heroMap.get(id).name)} available"`)).join('')}</div>
-    ${unavailable.size ? button('clear-blocked','Clear','','text-button') : '<span class="session-hint">Mark bans or enemy picks to see your options.</span>'}`;
+    ${unavailable.size ? button('clear-blocked','Clear','','text-button') : ''}`;
   el.hidden = view !== 'drafts';
 }
 function filteredDrafts() {
-  return allDrafts().filter(d => (!onlyFavorites || favorites.has(d.id)) && (source !== 'local' || d._source !== 'repo') && (!tag || d.tags?.includes(tag)) && matchesSearch(d,query,heroMap,position)).sort((a,b) => Number(favorites.has(b.id))-Number(favorites.has(a.id)) || a.title.localeCompare(b.title));
+  return allDrafts().filter(d => (!onlyFavorites || favorites.has(d.id)) && (!tag || d.tags?.includes(tag)) && matchesSearch(d,query,heroMap,position)).sort((a,b) => Number(favorites.has(b.id))-Number(favorites.has(a.id)) || a.title.localeCompare(b.title));
 }
 function renderContent() {
   const focus = rememberFocus(document.body);
@@ -159,10 +154,10 @@ function renderContent() {
   $('#header-actions').innerHTML = view === 'drafts' ? button('new',`${icon('plus')}<span>New draft</span><kbd>N</kbd>`,'','primary') : `${button('add-match','Add match','plus','secondary')}${button('refresh-matches',busy ? 'Loading…' : 'Refresh','refresh','primary',busy ? 'disabled' : '')}`;
   if (view === 'matches') { renderMatches(); restoreFocus(document.body,focus); return; }
   const drafts = filteredDrafts();
-  $('#result-count').textContent = `${drafts.length} of ${allDrafts().length} drafts${tag ? ` · ${tag}` : ''}`;
+  $('#result-count').textContent = query || tag || onlyFavorites ? `${drafts.length} drafts` : '';
   $('#content').setAttribute('aria-label','Draft library');
-  $('#content').innerHTML = `${tag || query || onlyFavorites || source !== 'all' ? `<div class="filter-summary"><span>${esc(tag || (onlyFavorites ? 'Starred drafts' : source === 'local' ? 'On this browser' : `Results for “${query}”`))}</span>${button('clear-filters','Clear filters','close','text-button')}</div>` : ''}
-    ${drafts.length ? `<div class="draft-list">${drafts.map(renderCard).join('')}</div>` : `<div class="empty-state">${icon('search')}<h2>${allDrafts().length ? 'No drafts found' : 'No drafts yet'}</h2><p>${allDrafts().length ? 'Try another hero, tag, or title.' : 'Create a draft or import a JSON file to start your library.'}</p>${button(allDrafts().length ? 'clear-filters' : 'new',allDrafts().length ? 'Clear filters' : 'New draft','plus','secondary')}</div>`}`;
+  $('#content').innerHTML = `${tag || query || onlyFavorites ? `<div class="filter-summary"><span>${esc(tag || (onlyFavorites ? 'Starred drafts' : `Results for “${query}”`))}</span>${button('clear-filters','Clear filters','close','text-button')}</div>` : ''}
+    ${drafts.length ? `<div class="draft-list">${drafts.map(renderCard).join('')}</div>` : `<div class="empty-state">${icon('search')}<h2>${allDrafts().length ? 'No drafts found' : 'No drafts yet'}</h2>${button(allDrafts().length ? 'clear-filters' : 'new',allDrafts().length ? 'Clear filters' : 'New draft','plus','secondary')}</div>`}`;
   restoreFocus(document.body,focus);
 }
 function renderCard(d, index) {
@@ -170,45 +165,51 @@ function renderCard(d, index) {
   const starred = favorites.has(d.id);
   return `<article class="draft-card ${unavailable.size && !lineup ? 'no-lineup' : ''}">
     <header class="card-header"><h2>${button('detail',esc(d.title),'','draft-title',`data-id="${d.id}"`)}</h2><div class="card-tags">${(d.tags ?? []).filter(t => t !== 'example').slice(0,3).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
-      ${d._source !== 'repo' ? `<span class="local-label">${d._source === 'edited' ? 'Local edits' : 'Browser draft'}</span>` : d.tags?.includes('example') ? '<span class="example-label">Example</span>' : ''}
+      ${d._source !== 'repo' ? '<span class="local-label">Unsaved</span>' : d.tags?.includes('example') ? '<span class="example-label">Example</span>' : ''}
       ${iconButton('favorite',starred ? 'Unstar draft' : 'Star draft','star',starred ? 'starred' : '',`data-id="${d.id}" aria-pressed="${starred}"`)}
     </header>
     <button type="button" data-action="detail" data-id="${d.id}" class="lineup-button" aria-label="Open ${esc(d.title)}">
       ${POSITIONS.map(p => {
         const ids = d[`pos${p}`]; const current = lineup?.[p] || ids.find(h => !unavailable.has(h)) || ids[0];
-        return `<div class="position-preview"><div class="position-label"><b>${p}</b><span>${ROLES[p-1]}</span>${current !== ids[0] ? '<span class="backup-label">Backup</span>' : ''}</div><div class="primary-portrait ${unavailable.has(current) ? 'is-unavailable' : ''}">${portrait(current,'',index < 3)}<span>${esc(heroMap.get(current).name)}</span></div><div class="backup-previews">${ids.filter(id => id !== current).map(id => `<span class="mini-portrait ${unavailable.has(id) ? 'is-unavailable' : ''}">${portrait(id)}<small>${ids.indexOf(id)+1}</small></span>`).join('')}${ids.length === 1 ? '<span class="no-backups">No backups</span>' : ''}</div></div>`;
+        return `<div class="position-preview" data-position="${p}"><div class="position-label"><b>${p}</b><span>${ROLES[p-1]}</span>${current !== ids[0] ? '<span class="backup-label">Backup</span>' : ''}</div><div class="primary-portrait ${unavailable.has(current) ? 'is-unavailable' : ''}">${portrait(current,'',index < 3)}<span>${esc(heroMap.get(current).name)}</span></div><div class="backup-previews">${ids.filter(id => id !== current).map(id => `<span class="mini-portrait ${unavailable.has(id) ? 'is-unavailable' : ''}">${portrait(id)}<small>${ids.indexOf(id)+1}</small></span>`).join('')}</div></div>`;
       }).join('')}
     </button>
-    <footer class="card-footer"><p>${esc(d.description?.replace(/^Example draft\. /,'') || 'No notes added.')}</p><span class="card-status ${unavailable.size && !lineup ? 'warning' : ''}">${unavailable.size ? lineup ? `${icon('check')} Lineup available` : `${icon('ban')} No complete lineup` : `${POSITIONS.reduce((sum,p) => sum+d[`pos${p}`].length-1,0)} alternatives`}</span></footer>
+    ${d.description || unavailable.size && !lineup ? `<footer class="card-footer">${d.description ? `<p>${esc(d.description.replace(/^Example draft\. /,''))}</p>` : ''}${unavailable.size && !lineup ? `<span class="card-status warning">${icon('ban')}No lineup available</span>` : ''}</footer>` : ''}
   </article>`;
 }
 
-function showDetail(id, updateHash = true) {
+function showDetail(id, updateHash = true, sharedChoices = null) {
   const d = getDraft(id); if (!d) return;
   const focus = rememberFocus($('#detail-dialog'));
-  if (selectedId !== id) locks = {};
+  if (sharedChoices && Object.keys(sharedChoices).length) {
+    const shared = resolveLineup(d, new Set(), sharedChoices);
+    if (shared) choices = shared;
+    else { choices = resolveLineup(d,unavailable) || {}; toast('This lineup is no longer available in the draft.',true); }
+  } else if (selectedId !== id) choices = resolveLineup(d,unavailable) || {};
   selectedId = id;
-  const lineup = resolveLineup(d,unavailable,locks);
-  $('#detail-dialog').innerHTML = `<header class="dialog-header detail-header"><div><span class="overline">Draft view</span><h2 id="detail-title">${esc(d.title)}</h2></div><div class="button-row">${iconButton('favorite',favorites.has(id) ? 'Unstar draft' : 'Star draft','star',favorites.has(id) ? 'starred' : '',`data-id="${id}"`)}${button('edit-detail','Edit','edit','secondary')}${iconButton('close-detail','Close draft (Esc)','close')}</div></header>
+  const lineup = POSITIONS.every(p=>choices[p]) ? resolveLineup(d,new Set(),choices) : null;
+  const available = lineup && Object.values(lineup).every(hero => !unavailable.has(hero));
+  $('#detail-dialog').innerHTML = `<header class="dialog-header detail-header"><h2 id="detail-title">${esc(d.title)}</h2><div class="button-row">${iconButton('favorite',favorites.has(id) ? 'Unstar draft' : 'Star draft','star',favorites.has(id) ? 'starred' : '',`data-id="${id}"`)}${button('edit-detail','Edit','edit','secondary')}${iconButton('close-detail','Close draft (Esc)','close')}</div></header>
     ${d.description ? `<p class="detail-description">${esc(d.description)}</p>` : ''}
-    <div class="detail-toolbar"><div class="button-row">${button('blocked','Unavailable heroes','ban','secondary')}${unavailable.size ? `<span class="muted">${unavailable.size} unavailable</span>${button('clear-blocked','Clear','','text-button')}` : ''}</div><span class="lineup-status ${!lineup ? 'warning' : ''}">${icon(lineup ? 'check' : 'ban')}${lineup ? 'Five unique heroes available' : 'No complete lineup with these choices'}</span></div>
+    ${d.bans?.length ? `<div class="draft-bans"><span>Bans:</span>${d.bans.map(id=>`<span class="ban-portrait">${portrait(id)}</span>`).join('')}</div>` : ''}
+    <div class="detail-toolbar"><div class="button-row">${button('blocked','Unavailable heroes','ban','secondary')}${unavailable.size ? button('clear-blocked','Clear','','text-button') : ''}</div>${!available ? '<span class="lineup-status warning">No lineup available</span>' : ''}</div>
     <div class="detail-positions">${POSITIONS.map(p => {
-      const current = lineup?.[p] || locks[p] || d[`pos${p}`].find(h => !unavailable.has(h));
-      return `<section class="detail-position"><h3><b>${p}</b>${ROLES[p-1]}${locks[p] ? '<span class="locked-label">Locked</span>' : ''}</h3><div class="detail-primary ${!current || unavailable.has(current) ? 'is-unavailable' : ''}">${portrait(current || d[`pos${p}`][0],'',true)}<strong>${esc(heroMap.get(current)?.name || 'Unavailable')}</strong></div><div class="hero-options">${d[`pos${p}`].map((hero,i) => `<div class="hero-option ${current === hero ? 'selected' : ''} ${unavailable.has(hero) ? 'is-unavailable' : ''}"><button class="hero-choice" type="button" data-action="choose" data-position="${p}" data-hero="${hero}" aria-pressed="${locks[p] === hero}" ${unavailable.has(hero) ? 'disabled' : ''}><span class="priority">${i+1}</span>${portrait(hero)}<span>${esc(heroMap.get(hero).name)}</span>${locks[p] === hero ? icon('check') : ''}</button>${iconButton('toggle-blocked',unavailable.has(hero) ? `Make ${heroMap.get(hero).name} available` : `Mark ${heroMap.get(hero).name} unavailable`,'ban',unavailable.has(hero) ? 'blocked' : '',`data-hero="${hero}" aria-pressed="${unavailable.has(hero)}"`)}</div>`).join('')}</div></section>`;
+      const current = choices[p] || d[`pos${p}`].find(h => !unavailable.has(h));
+      return `<section class="detail-position" data-position="${p}"><h3><b>${p}</b>${ROLES[p-1]}</h3><div class="detail-primary ${!current || unavailable.has(current) ? 'is-unavailable' : ''}">${portrait(current || d[`pos${p}`][0],'',true)}<strong>${esc(heroMap.get(current)?.name || 'Unavailable')}</strong></div><div class="hero-options">${d[`pos${p}`].map((hero,i) => `<div class="hero-option ${current === hero ? 'selected' : ''} ${unavailable.has(hero) ? 'is-unavailable' : ''}"><button class="hero-choice" type="button" data-action="choose" data-position="${p}" data-hero="${hero}" aria-pressed="${current === hero}" ${unavailable.has(hero) ? 'disabled' : ''}><span class="priority">${i+1}</span>${portrait(hero)}<span>${esc(heroMap.get(hero).name)}</span>${current === hero ? icon('check') : ''}</button>${iconButton('toggle-blocked',unavailable.has(hero) ? `Make ${heroMap.get(hero).name} available` : `Mark ${heroMap.get(hero).name} unavailable`,'ban',unavailable.has(hero) ? 'blocked' : '',`data-hero="${hero}" aria-pressed="${unavailable.has(hero)}"`)}</div>`).join('')}</div></section>`;
     }).join('')}</div>
-    <footer class="dialog-footer"><span class="muted">Click a hero to lock it. Click again to release it.${d._source !== 'repo' ? button('remove-local',d._source === 'edited' ? 'Discard local edits' : 'Remove browser draft','','text-button',`data-id="${d.id}"`) : ''}</span><div class="button-row">${Object.keys(locks).length ? button('reset-locks','Reset choices','','secondary') : ''}${button('duplicate','Duplicate','copy','secondary')}${button('export-detail','Export JSON','download','secondary')}${button('github-detail','Send to GitHub','external','primary')}</div></footer>`;
+    <footer class="dialog-footer">${button('duplicate','Duplicate','copy','secondary')}<div class="button-row">${button('copy-lineup','Copy lineup','copy','secondary',lineup ? '' : 'disabled')}${button('github-detail','Save to GitHub','external','primary')}</div></footer>`;
   open('#detail-dialog');
   restoreFocus($('#detail-dialog'),focus);
-  if (updateHash && location.hash !== `#draft/${id}`) history.pushState({},'',`#draft/${id}`);
+  if (updateHash) history.pushState({},'',draftHash(id,choices));
 }
 function refreshAvailability() {
   write('unavailable',[...unavailable]);
-  for (const p of POSITIONS) if (unavailable.has(locks[p])) delete locks[p];
+  if (selectedId) choices = preferredLineup(getDraft(selectedId),choices,unavailable) || {};
   renderContent();
-  if ($('#detail-dialog').open) showDetail(selectedId,false);
+  if ($('#detail-dialog').open) { showDetail(selectedId,false); history.replaceState({},'',draftHash(selectedId,choices)); }
 }
 function closeDetail() {
-  close('#detail-dialog'); selectedId = null; locks = {};
+  close('#detail-dialog'); selectedId = null; choices = {};
   if (location.hash.startsWith('#draft/')) history.replaceState({},'',location.pathname+location.search);
 }
 
@@ -231,12 +232,12 @@ function saveRecovery() {
 function renderEditor() {
   const focus = rememberFocus($('#editor-dialog'));
   const d = editor.draft;
-  $('#editor-dialog').innerHTML = `<header class="dialog-header"><div><span class="overline">${editor.target ? 'Edit draft' : 'New draft'}</span><h2 id="editor-title">${editor.target ? 'Edit lineup' : 'Build a lineup'}</h2></div>${iconButton('close-editor','Close editor; keep unfinished draft','close')}</header>
+  $('#editor-dialog').innerHTML = `<header class="dialog-header"><h2 id="editor-title">${editor.target ? 'Edit draft' : 'New draft'}</h2>${iconButton('close-editor','Close editor','close')}</header>
     <div class="editor-fields"><label>Title<input id="draft-title" maxlength="100" placeholder="Draft name" value="${esc(d.title)}" autocomplete="off"></label><label>Tags <span class="optional">comma separated</span><input id="draft-tags" value="${esc((d.tags ?? []).join(', '))}" placeholder="teamfight, comfort" autocomplete="off"></label><label class="description-field">Notes <span class="optional">optional</span><textarea id="draft-description" maxlength="3000" rows="2" placeholder="Timings, lanes, or things to remember">${esc(d.description)}</textarea></label></div>
     ${editor.suggestions?.length ? `<div class="suggestions"><span>Match heroes · assign positions</span>${editor.suggestions.filter(id => !POSITIONS.some(p => d[`pos${p}`].includes(id))).map(id => button('assign-suggestion',`${portrait(id)}${esc(heroMap.get(id)?.name)}`,'','suggested-hero',`data-hero="${id}"`)).join('')}</div>` : ''}
-    <div class="editor-guide"><span>First hero is primary. Alternatives follow in priority order.</span><span class="muted">Up to ${MAX_HEROES} per position</span></div>
-    <div class="editor-positions">${POSITIONS.map(p => `<section class="editor-position"><h3><b>${p}</b>${ROLES[p-1]}<span class="muted">${d[`pos${p}`].length}</span></h3><ol class="editable-heroes">${d[`pos${p}`].map((id,i) => `<li><div class="editable-hero-image">${portrait(id)}<span>${i === 0 ? 'Primary' : `Backup ${i}`}</span></div><div class="editable-hero-name">${esc(heroMap.get(id).name)}</div><div class="reorder-tools">${iconButton('move',`Move ${heroMap.get(id).name} up`,'up','',`data-position="${p}" data-index="${i}" data-delta="-1" ${i===0 ? 'disabled' : ''}`)}${iconButton('move',`Move ${heroMap.get(id).name} down`,'down','',`data-position="${p}" data-index="${i}" data-delta="1" ${i===d[`pos${p}`].length-1 ? 'disabled' : ''}`)}${iconButton('remove-hero',`Remove ${heroMap.get(id).name}`,'close','remove-hero',`data-position="${p}" data-index="${i}"`)}</div></li>`).join('')}</ol>${button('add-hero',d[`pos${p}`].length ? 'Add backup' : 'Add hero','plus',`add-hero ${!d[`pos${p}`].length ? 'empty-slot' : ''}`,`data-position="${p}" ${d[`pos${p}`].length >= MAX_HEROES ? 'disabled' : ''}`)}</section>`).join('')}</div>
-    <div id="editor-errors" class="form-errors" role="alert" hidden></div><footer class="dialog-footer"><span class="muted">Saved in this browser. Export or send to GitHub to share.</span><div class="button-row">${button('discard-editor','Discard','','text-button')}${button('save-editor','Save draft','check','primary')}</div></footer>`;
+    <div class="editor-positions">${POSITIONS.map(p => `<section class="editor-position" data-position="${p}"><h3><b>${p}</b>${ROLES[p-1]}</h3><ol class="editable-heroes">${d[`pos${p}`].map((id,i) => `<li><div class="editable-hero-image">${portrait(id)}<span>${i === 0 ? 'Primary' : `Backup ${i}`}</span></div><div class="editable-hero-name">${esc(heroMap.get(id).name)}</div><div class="reorder-tools">${iconButton('move',`Move ${heroMap.get(id).name} up`,'up','',`data-position="${p}" data-index="${i}" data-delta="-1" ${i===0 ? 'disabled' : ''}`)}${iconButton('move',`Move ${heroMap.get(id).name} down`,'down','',`data-position="${p}" data-index="${i}" data-delta="1" ${i===d[`pos${p}`].length-1 ? 'disabled' : ''}`)}${iconButton('remove-hero',`Remove ${heroMap.get(id).name}`,'close','remove-hero',`data-position="${p}" data-index="${i}"`)}</div></li>`).join('')}</ol>${button('add-hero',d[`pos${p}`].length ? 'Add backup' : 'Add hero','plus',`add-hero ${!d[`pos${p}`].length ? 'empty-slot' : ''}`,`data-position="${p}" ${d[`pos${p}`].length >= MAX_HEROES ? 'disabled' : ''}`)}</section>`).join('')}</div>
+    <div class="editor-bans"><span>Bans:</span>${(d.bans ?? []).map(id=>`<span class="editable-ban">${portrait(id)}${iconButton('remove-ban',`Remove ${heroMap.get(id).name}`,'close','',`data-hero="${id}"`)}</span>`).join('')}${button('add-ban','Add ban','plus','text-button')}</div>
+    <div id="editor-errors" class="form-errors" role="alert" hidden></div><footer class="dialog-footer">${button('discard-editor','Discard','','text-button')}<div class="button-row">${editor.target && localDrafts.some(d=>d.id===editor.target) ? button('remove-local','Discard saved changes','','text-button',`data-id="${editor.target}"`) : ''}${button('save-editor','Done','check','primary')}</div></footer>`;
   restoreFocus($('#editor-dialog'),focus);
 }
 function saveEditor() {
@@ -247,81 +248,86 @@ function saveEditor() {
   const saved = cleanDraft(draft);
   const next = [...localDrafts.filter(d => d.id !== saved.id),saved];
   if (!write('local',next)) return;
-  localDrafts = next; forget('editor'); editor=null; close('#editor-dialog'); renderContent(); toast('Draft saved in this browser.'); showDetail(saved.id);
+  localDrafts = next; forget('editor'); editor=null; close('#editor-dialog'); renderContent(); showDetail(saved.id);
 }
 
 function openPicker(mode, p = null) {
   picker = { mode, position:p, search:'', attribute:'' };
-  $('#picker-dialog').innerHTML = `<header class="dialog-header"><h2 id="picker-title">${mode === 'block' ? 'Unavailable heroes' : `Add hero · Position ${p}`}</h2>${iconButton('close-picker','Close hero picker','close')}</header><label class="search picker-search">${icon('search')}<input id="hero-search" type="search" placeholder="Find a hero…" aria-label="Find a hero" autocomplete="off" autofocus></label><div class="attribute-filters">${[['','All'],['str','Strength'],['agi','Agility'],['int','Intelligence'],['all','Universal']].map(([attr,label]) => button('attribute',label,'',`attribute-filter ${!attr ? 'active' : ''}`,`data-attribute="${attr}" aria-pressed="${!attr}"`)).join('')}</div><div id="hero-grid" class="hero-grid" aria-label="Heroes"></div><footer class="picker-footer"><span id="hero-count" aria-live="polite"></span><span>${mode === 'block' ? 'Toggle bans and enemy picks. Changes apply immediately.' : 'Select a hero to add it.'}</span></footer>`;
+  $('#picker-dialog').innerHTML = `<header class="dialog-header"><h2 id="picker-title">${mode === 'block' ? 'Unavailable heroes' : mode === 'bans' ? 'Bans' : `Add hero · Position ${p}`}</h2>${iconButton('close-picker','Close hero picker','close')}</header><label class="search picker-search">${icon('search')}<input id="hero-search" type="search" placeholder="Find a hero…" aria-label="Find a hero" autocomplete="off" autofocus></label><div class="attribute-filters">${[['','All'],...ATTRIBUTES].map(([attr,label]) => button('attribute',label,'',`attribute-filter ${!attr ? 'active' : ''}`,`data-attribute="${attr}" aria-pressed="${!attr}"`)).join('')}</div><div id="hero-grid" class="hero-grid" aria-label="Heroes"></div>`;
   renderHeroGrid(); open('#picker-dialog'); $('#hero-search').focus();
 }
 function renderHeroGrid() {
   const list = heroes.filter(h => (!picker.attribute || h.attribute === picker.attribute) && normalizeText([h.name,h.id,...h.aliases].join(' ')).includes(normalizeText(picker.search)));
-  $('#hero-count').textContent = `${list.length} heroes`;
-  $('#hero-grid').innerHTML = list.length ? list.map(h => {
-    const chosen = picker.mode === 'block' ? unavailable.has(h.id) : editor.draft[`pos${picker.position}`].includes(h.id);
-    return `<button type="button" class="hero-tile ${chosen ? 'chosen' : ''} ${picker.mode === 'block' && chosen ? 'is-unavailable' : ''}" data-action="pick-hero" data-hero="${h.id}" aria-label="${esc(h.name)}" aria-pressed="${chosen}" ${picker.mode !== 'block' && chosen ? 'disabled' : ''}>${portrait(h.id)}<span>${esc(h.name)}</span>${chosen ? `<b>${icon(picker.mode === 'block' ? 'ban' : 'check')}</b>` : ''}</button>`;
+  $('#hero-grid').innerHTML = list.length ? ATTRIBUTES.map(([attribute,label]) => {
+    const group = list.filter(h => h.attribute === attribute);
+    if (!group.length) return '';
+    return `<section class="attribute-group" data-attribute="${attribute}" aria-label="${label}"><h3>${label}</h3><div class="hero-group-grid">${group.map(h => {
+      const selected = picker.mode === 'block' ? unavailable : new Set(picker.mode === 'bans' ? editor.draft.bans ?? [] : editor.draft[`pos${picker.position}`]);
+      const chosen = selected.has(h.id);
+      const full = picker.mode === 'bans' ? selected.size >= MAX_BANS : picker.mode === 'edit' && selected.size >= MAX_HEROES;
+      const disabled = picker.mode === 'edit' && chosen || picker.mode !== 'block' && !chosen && full;
+      return `<button type="button" class="hero-tile ${chosen ? 'chosen' : ''} ${picker.mode === 'block' && chosen ? 'is-unavailable' : ''}" data-action="pick-hero" data-hero="${h.id}" aria-label="${esc(h.name)}" aria-pressed="${chosen}" ${disabled ? 'disabled' : ''}><div class="hero-tile-picture">${portrait(h.id)}</div><span class="hero-tile-name">${esc(h.name)}</span>${chosen ? `<b>${icon(picker.mode === 'block' ? 'ban' : 'check')}</b>` : ''}</button>`;
+    }).join('')}</div></section>`;
   }).join('') : '<p class="grid-empty">No matching heroes.</p>';
 }
-
-function exportJson(value, filename) {
-  const url = URL.createObjectURL(new Blob([`${JSON.stringify(value,null,2)}\n`],{type:'application/json'}));
-  const a = document.createElement('a'); a.href=url; a.download=filename; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
+function pickHero(hero, force = false) {
+  if (!heroMap.has(hero)) return;
+  if (picker.mode === 'block') {
+    if (!force && unavailable.has(hero)) unavailable.delete(hero); else unavailable.add(hero);
+    refreshAvailability();
+  } else if (picker.mode === 'bans') {
+    const bans = editor.draft.bans ?? [];
+    if (bans.includes(hero)) editor.draft.bans = bans.filter(id => id !== hero);
+    else if (bans.length < MAX_BANS) editor.draft.bans = [...bans,hero];
+    saveRecovery(); renderEditor();
+  } else {
+    const list = editor.draft[`pos${picker.position}`];
+    if (!list.includes(hero) && list.length < MAX_HEROES) list.push(hero);
+    saveRecovery(); renderEditor();
+  }
+  renderHeroGrid(); $('#hero-search').focus(); $('#hero-search').select();
+}
+function closePicker() {
+  close('#picker-dialog');
+  const root = picker.mode === 'block' ? ($('#detail-dialog').open ? $('#detail-dialog') : document) : $('#editor-dialog');
+  const selector = picker.mode === 'edit' ? `[data-action="add-hero"][data-position="${picker.position}"]` : picker.mode === 'bans' ? '[data-action="add-ban"]' : '[data-action="blocked"]';
+  const target = $(selector,root);
+  (target && !target.disabled ? target : $('#draft-title') || $('[data-action="close-detail"]'))?.focus(); picker = null;
+}
+async function copyText(text, label = 'Lineup') {
+  try { await navigator.clipboard.writeText(text); toast(`${label} copied.`); }
+  catch { utility(`Copy ${label.toLowerCase()}`,`<div class="utility-body"><textarea class="clipboard-text" aria-label="${esc(label)}" readonly>${esc(text)}</textarea></div>`); $('.clipboard-text').select(); }
 }
 function showGithub(d) {
   const existing = repoDrafts.some(r => r.id === d.id);
   const url = existing ? `https://github.com/${config.repository}/edit/${encodeURIComponent(config.branch)}/data/drafts/${d.id}.json` : githubCreateUrl(config,d);
   const tooLong = url?.length > 12000;
   const fallback = `https://github.com/${config.repository}/new/${encodeURIComponent(config.branch)}?filename=${encodeURIComponent(`data/drafts/${d.id}.json`)}`;
-  utility('Send draft to GitHub',`<div class="utility-body"><p>${existing || tooLong ? 'Copy the JSON, open GitHub, and replace the file contents.' : 'Open GitHub to review the prefilled JSON and commit it to the repository.'} GitHub handles sign-in and permissions.</p><div class="file-path">data/drafts/${esc(d.id)}.json</div><p class="muted small-text">The shared library updates after the Pages workflow finishes. Your browser copy stays available.</p><div class="button-row">${button('copy-json','Copy JSON','copy','secondary',`data-id="${d.id}"`)}<a class="button primary" href="${esc(tooLong ? fallback : url)}" target="_blank" rel="noopener noreferrer">${icon('external')}Open GitHub</a></div></div>`);
-}
-async function importFile(file) {
-  try {
-    if (file.size > 1024*1024) throw new Error('JSON files must be under 1 MB.');
-    const value = JSON.parse(await file.text()); const items = Array.isArray(value) ? value : [value];
-    if (items.length > 200) throw new Error('Import up to 200 drafts at a time.');
-    const ids = new Set();
-    for (const item of items) {
-      const errors = validateDraft(item,heroMap);
-      if (errors.length) throw new Error(`${item?.title || 'Draft'}: ${errors.join(' ')}`);
-      if (ids.has(item.id)) throw new Error('The import has duplicate draft IDs.'); ids.add(item.id);
-    }
-    const conflicts = items.filter(item => allDrafts().some(d => d.id === item.id));
-    const commitImport = () => {
-      const next = [...localDrafts.filter(d => !ids.has(d.id)), ...items.map(cleanDraft)];
-      if (!write('local',next)) return;
-      localDrafts=next; close('#utility-dialog'); view='drafts'; renderContent(); toast(`Imported ${items.length} draft${items.length===1 ? '' : 's'}.`);
-    };
-    if (conflicts.length) {
-      utility('Replace existing drafts?',`<div class="utility-body"><p>${conflicts.length} draft${conflicts.length===1 ? '' : 's'} already exist. Importing replaces their browser copies.</p><p>${esc(conflicts.map(d => d.title).join(', '))}</p><div class="button-row">${button('close-utility','Cancel','','secondary')}<button id="confirm-import" class="primary" type="button">Replace and import</button></div></div>`);
-      $('#confirm-import').addEventListener('click',commitImport,{once:true});
-    } else commitImport();
-  } catch (error) { toast(error.message,true); }
+  utility('Save to GitHub',`<div class="utility-body"><p>${existing || tooLong ? 'Copy the JSON and replace the file contents on GitHub.' : 'Review and commit the draft on GitHub.'}</p><div class="button-row">${existing || tooLong ? button('copy-json','Copy JSON','copy','secondary',`data-id="${d.id}"`) : ''}<a class="button primary" href="${esc(tooLong ? fallback : url)}" target="_blank" rel="noopener noreferrer">${icon('external')}Open GitHub</a></div></div>`);
 }
 
 function renderMatches() {
   const list = matchData.matches.filter(m => normalizeText([m.id,m.opponent,m.league,...(m.heroes ?? []).map(id => heroByNumber.get(id)?.name)].join(' ')).includes(normalizeText(query)));
-  const synced = matchData.updatedAt ? new Date(matchData.updatedAt).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}) : '';
-  $('#result-count').textContent = `${list.length} matches${synced ? ` · Updated ${synced}` : ''}`;
+  $('#result-count').textContent = `${list.length} matches`;
   $('#content').setAttribute('aria-label','Team match history');
-  $('#content').innerHTML = `${matchError ? `<div class="notice error-notice" role="alert">${esc(matchError)} Cached matches are kept.</div>` : ''}${busy ? '<div class="notice" id="match-progress" role="status">Loading OpenDota match data…</div>' : ''}
+  $('#content').innerHTML = `${matchError ? `<div class="notice error-notice" role="alert">${esc(matchError)}</div>` : ''}${busy ? '<div class="notice" id="match-progress" role="status">Loading matches…</div>' : ''}
     ${matchData.warnings?.length && !matchError ? `<div class="notice">Some OpenDota data was unavailable. ${esc(matchData.warnings[0])}</div>` : ''}
-    ${list.length ? `<div class="matches-list">${list.map(m => `<article class="match-card"><header><div><span class="result ${m.won === true ? 'won' : m.won === false ? 'lost' : ''}">${m.won === true ? 'WIN' : m.won === false ? 'LOSS' : '—'}</span><h2>vs ${esc(m.opponent)}</h2></div><span class="muted">${m.startTime ? new Date(m.startTime*1000).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}) : ''}</span></header><div class="match-lineups"><section><h3>Our heroes <span>${m.radiant ? 'Radiant' : 'Dire'}</span></h3><div class="match-heroes">${m.heroes?.length ? m.heroes.map(numberedPortrait).join('') : '<span class="muted">Hero data unavailable</span>'}</div></section><span class="versus">vs</span><section><h3>${esc(m.opponent)}</h3><div class="match-heroes">${m.opponents?.length ? m.opponents.map(numberedPortrait).join('') : '<span class="muted">Hero data unavailable</span>'}</div></section></div><footer><span class="muted">${esc(m.league)} ${m.duration ? `· ${Math.floor(m.duration/60)}:${String(m.duration%60).padStart(2,'0')}` : ''} · ${m.id}</span><div class="button-row">${m.heroes?.length === 5 ? button('draft-from-match','Create draft','plus','text-button',`data-match="${m.id}"`) : ''}<a href="https://www.opendota.com/matches/${m.id}" target="_blank" rel="noopener noreferrer" class="text-button">OpenDota ${icon('external')}</a></div></footer></article>`).join('')}</div><p class="match-note">Hero order is from the match record. Positions 1–5 are not inferred.</p>` : `<div class="empty-state">${icon('history')}<h2>${query ? 'No matches found' : busy ? 'Loading match history' : 'No tracked matches yet'}</h2><p>${query ? 'Try another opponent, hero, or match ID.' : 'OpenDota may not index this team’s amateur or private lobbies. Try a match ID directly.'}</p><div class="button-row">${button('add-match','Add match ID','plus','secondary')}${query ? button('clear-filters','Clear search','','text-button') : ''}</div></div>`}
-    <div class="matches-bottom"><span>OpenDota · keyless access · ${esc(config.teamName || matchData.teamName || config.teamId || 'No team configured')}</span>${button('export-matches','Export snapshot','download','text-button')}</div>`;
+    ${list.length ? `<div class="matches-list">${list.map(m => `<article class="match-card"><header><div><span class="result ${m.won === true ? 'won' : m.won === false ? 'lost' : ''}">${m.won === true ? 'WIN' : m.won === false ? 'LOSS' : '—'}</span><h2>vs ${esc(m.opponent)}</h2></div><span class="muted">${m.startTime ? new Date(m.startTime*1000).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}) : ''}</span></header><div class="match-lineups"><section><h3>Our heroes <span>${m.radiant ? 'Radiant' : 'Dire'}</span></h3><div class="match-heroes">${m.heroes?.length ? m.heroes.map(numberedPortrait).join('') : '<span class="muted">Hero data unavailable</span>'}</div></section><span class="versus">vs</span><section><h3>${esc(m.opponent)}</h3><div class="match-heroes">${m.opponents?.length ? m.opponents.map(numberedPortrait).join('') : '<span class="muted">Hero data unavailable</span>'}</div></section></div><footer><span class="muted">${esc(m.league)} ${m.duration ? `· ${Math.floor(m.duration/60)}:${String(m.duration%60).padStart(2,'0')}` : ''} · ${m.id}</span><div class="button-row">${m.heroes?.length === 5 ? button('draft-from-match','Create draft','plus','text-button',`data-match="${m.id}"`) : ''}<a href="https://www.opendota.com/matches/${m.id}" target="_blank" rel="noopener noreferrer" class="text-button">OpenDota ${icon('external')}</a></div></footer></article>`).join('')}</div>` : `<div class="empty-state">${icon('history')}<h2>${query ? 'No matches found' : busy ? 'Loading match history' : 'No tracked matches yet'}</h2><p>${query ? 'Try another opponent, hero, or match ID.' : 'OpenDota may not index this team’s amateur or private lobbies. Try a match ID directly.'}</p><div class="button-row">${button('add-match','Add match ID','plus','secondary')}${query ? button('clear-filters','Clear search','','text-button') : ''}</div></div>`}
+    `;
 }
 async function refreshMatches(force = false) {
   if (busy || !config.teamId) return;
   if (!force && matchData.updatedAt && Date.now()-Date.parse(matchData.updatedAt)<30*60*1000) return;
   busy=true; matchError=''; renderContent();
   try {
-    matchData = await loadTeamMatches(config,{previous:matchData,onProgress:(done,total) => { const el=$('#match-progress'); if (el) el.textContent=`Loading OpenDota · ${done} of ${total} matches`; }});
+    matchData = await loadTeamMatches(config,{previous:matchData,onProgress:(done,total) => { const el=$('#match-progress'); if (el) el.textContent=`Loading matches · ${done} of ${total}`; }});
     write(`matches:${config.teamId}`,matchData);
     if (!config.teamName && matchData.teamName) { config.teamName=matchData.teamName; renderShell(); }
   } catch (error) { matchError=error.message; }
   finally { busy=false; if (view==='matches') renderContent(); }
 }
 function showAddMatch() {
-  utility('Add a match',`<div class="utility-body"><p>Load a match by ID when it is missing from the team history.</p><label>Match ID<input id="match-id" type="text" inputmode="numeric" pattern="[0-9]+" placeholder="e.g. 8123456789" autocomplete="off"></label><label>Our side<select id="match-side"><option value="">Detect from team ID</option><option value="radiant">Radiant</option><option value="dire">Dire</option></select></label><p class="muted small-text">Choose a side if the match has no team IDs. This adds it to your browser’s config and match cache.</p><p id="match-add-error" class="form-errors" role="alert" hidden></p>${button('load-match','Load match','download','primary')}</div>`);
+  utility('Add a match',`<div class="utility-body"><label>Match ID<input id="match-id" type="text" inputmode="numeric" pattern="[0-9]+" placeholder="9082244244" autocomplete="off"></label><label>Our side<select id="match-side"><option value="">Detect from team ID</option><option value="radiant">Radiant</option><option value="dire">Dire</option></select></label><p id="match-add-error" class="form-errors" role="alert" hidden></p>${button('load-match','Load match','download','primary')}</div>`);
   $('#match-id').focus();
 }
 async function addMatch() {
@@ -330,19 +336,10 @@ async function addMatch() {
     const match=await loadSingleMatch(id,config.teamId,side);
     if (!match.heroes.length) throw new Error('No hero picks are available for this match.');
     const nextData={...matchData,teamId:config.teamId,updatedAt:new Date().toISOString(),matches:[...matchData.matches.filter(m=>m.id!==match.id),match].sort((a,b)=>b.id-a.id)};
-    const nextConfig={...config,manualMatches:[...(config.manualMatches ?? []).filter(m=>m.id!==id),{id,side:match.radiant ? 'radiant' : 'dire'}]};
-    if (!write(`matches:${config.teamId}`,nextData) || !write('config',nextConfig)) return;
-    matchData=nextData; config=nextConfig; close('#utility-dialog'); view='matches'; renderContent(); toast('Match saved in this browser. Export the snapshot to share it.');
+    if (!write(`matches:${config.teamId}`,nextData)) return;
+    matchData=nextData; close('#utility-dialog'); view='matches'; renderContent();
   } catch (error) { $('#match-add-error').hidden=false; $('#match-add-error').textContent=`${error.message} If team detection failed, select Radiant or Dire.`; }
   finally { if(el.isConnected) {el.disabled=false;el.textContent='Load match';} }
-}
-function showSettings() {
-  utility('Settings',`<div class="utility-body"><label>Team name<input id="team-name" maxlength="100" value="${esc(config.teamName)}"></label><label>Dota team ID<input id="team-id" inputmode="numeric" value="${esc(config.teamId || '')}"></label><label>Matches to fetch<select id="match-limit">${[5,10,20].map(n=>`<option ${config.matchLimit===n ? 'selected' : ''}>${n}</option>`).join('')}</select></label><label>Repository<input value="${esc(config.repository)}" readonly></label><p class="muted small-text">Settings apply to this browser. Export config.json and commit it to set defaults for the team.</p><p id="settings-error" class="form-errors" role="alert" hidden></p><div class="button-row">${button('save-settings','Save settings','check','primary')}${button('export-config','Export config.json','download','secondary')}</div></div>`);
-}
-function collectSettings() {
-  const value=$('#team-id').value.trim(); const teamId=value ? Number(value) : null;
-  if (value && (!/^\d+$/.test(value) || !Number.isSafeInteger(teamId) || teamId<=0)) throw new Error('Team ID must be a positive number.');
-  return {...config,teamName:$('#team-name').value.trim(),teamId,matchLimit:Number($('#match-limit').value),manualMatches:teamId===config.teamId ? config.manualMatches ?? [] : []};
 }
 function showHelp() {
   utility('Keyboard shortcuts',`<div class="utility-body shortcuts">${[['/','Search'],['Ctrl / ⌘ K','Search'],['N','New draft'],['J / K','Next / previous draft'],['Enter','Open focused draft'],['1–5','Focus a position in draft view'],['Esc','Close the current dialog'],['?','Show shortcuts']].map(([key,label])=>`<div><span>${label}</span><kbd>${key}</kbd></div>`).join('')}<p class="muted small-text">Tab moves between controls. In the hero picker, use arrow keys to move between heroes and Enter to choose.</p></div>`);
@@ -360,15 +357,14 @@ document.addEventListener('input',event=>{
   }
 });
 document.addEventListener('change',event=>{if(event.target.id==='position-filter'){position=event.target.value;renderContent();}});
-$('#import-file').addEventListener('change',event=>{const file=event.target.files[0];if(file)importFile(file);event.target.value='';});
 document.addEventListener('click',async event=>{
   const el=event.target.closest('[data-action]'); if(!el || el.disabled)return;
   const a=el.dataset.action, id=el.dataset.id, hero=el.dataset.hero, p=Number(el.dataset.position), i=Number(el.dataset.index);
   if(a==='reload')location.reload();
-  else if(a==='view-drafts' || a==='view-matches'){view=a==='view-drafts'?'drafts':'matches';query='';$('#search').value='';renderContent();if(view==='matches')refreshMatches();}
-  else if(a.startsWith('filter-')){view='drafts';source=a==='filter-local'?'local':'all';onlyFavorites=a==='filter-favorites';tag='';renderContent();}
+  else if(a==='view-drafts' || a==='view-matches'){view=a==='view-drafts'?'drafts':'matches';query='';onlyFavorites=false;$('#search').value='';renderContent();if(view==='matches')refreshMatches();}
+  else if(a==='filter-favorites'){view='drafts';onlyFavorites=!onlyFavorites;tag='';renderContent();}
   else if(a==='tag'){view='drafts';tag=tag===el.dataset.tag?'':el.dataset.tag;renderContent();}
-  else if(a==='clear-filters'){query='';tag='';onlyFavorites=false;source='all';position='';$('#search').value='';$('#position-filter').value='';renderContent();}
+  else if(a==='clear-filters'){query='';tag='';onlyFavorites=false;position='';$('#search').value='';$('#position-filter').value='';renderContent();}
   else if(a==='favorite'){favorites.has(id)?favorites.delete(id):favorites.add(id);write('favorites',[...favorites]);renderContent();if($('#detail-dialog').open)showDetail(selectedId,false);}
   else if(a==='detail')showDetail(id);
   else if(a==='close-detail')closeDetail();
@@ -376,11 +372,10 @@ document.addEventListener('click',async event=>{
   else if(a==='unblock' || a==='toggle-blocked'){unavailable.has(hero)?unavailable.delete(hero):unavailable.add(hero);refreshAvailability();}
   else if(a==='clear-blocked'){unavailable.clear();refreshAvailability();}
   else if(a==='choose'){
-    const next={...locks};const releasing=next[p]===hero;if(releasing)delete next[p];else next[p]=hero;
-    if(!releasing && !resolveLineup(getDraft(selectedId),unavailable,next)){toast('That choice conflicts with another locked position or leaves no complete lineup. Release a choice first.',true);return;}
-    locks=next;showDetail(selectedId,false);
+    const next=preferredLineup(getDraft(selectedId),choices,unavailable,{[p]:hero});
+    if(!next){toast('No complete lineup is available with that hero.',true);return;}
+    choices=next;showDetail(selectedId,false);history.replaceState({},'',draftHash(selectedId,choices));
   }
-  else if(a==='reset-locks'){locks={};showDetail(selectedId,false);}
   else if(a==='new')openEditor();
   else if(a==='edit-detail')openEditor(getDraft(selectedId));
   else if(a==='duplicate')openEditor(getDraft(selectedId),true);
@@ -397,41 +392,31 @@ document.addEventListener('click',async event=>{
   }
   else if(a==='save-editor')saveEditor();
   else if(a==='add-hero')openPicker('edit',p);
+  else if(a==='add-ban')openPicker('bans');
+  else if(a==='remove-ban'){editor.draft.bans=editor.draft.bans.filter(id=>id!==hero);saveRecovery();renderEditor();}
   else if(a==='remove-hero'){editor.draft[`pos${p}`].splice(i,1);saveRecovery();renderEditor();}
   else if(a==='move'){const list=editor.draft[`pos${p}`],next=i+Number(el.dataset.delta);if(next>=0 && next<list.length){[list[i],list[next]]=[list[next],list[i]];saveRecovery();renderEditor();}}
-  else if(a==='close-picker')close('#picker-dialog');
+  else if(a==='close-picker')closePicker();
   else if(a==='attribute'){picker.attribute=el.dataset.attribute;$$('[data-action="attribute"]').forEach(b=>{b.classList.toggle('active',b===el);b.setAttribute('aria-pressed',String(b===el));});renderHeroGrid();}
-  else if(a==='pick-hero'){
-    if(picker.mode==='block'){unavailable.has(hero)?unavailable.delete(hero):unavailable.add(hero);refreshAvailability();renderHeroGrid();$(`[data-hero="${hero}"]`,$('#hero-grid'))?.focus();}
-    else {editor.draft[`pos${picker.position}`].push(hero);saveRecovery();close('#picker-dialog');renderEditor();$(`[data-action="add-hero"][data-position="${picker.position}"]`,$('#editor-dialog')).focus();}
-  }
+  else if(a==='pick-hero')pickHero(hero);
   else if(a==='assign-suggestion')utility('Assign position',`<div class="utility-body"><p>${esc(heroMap.get(hero).name)}</p><div class="assign-positions">${POSITIONS.map(pos=>button('assign-position',`<b>${pos}</b>${ROLES[pos-1]}`,'','secondary',`data-position="${pos}" data-hero="${hero}" ${editor.draft[`pos${pos}`].length>=MAX_HEROES?'disabled':''}`)).join('')}</div></div>`);
   else if(a==='assign-position'){editor.draft[`pos${p}`].push(hero);saveRecovery();close('#utility-dialog');renderEditor();}
-  else if(a==='export-detail')exportJson(cleanDraft(getDraft(selectedId)),`${selectedId}.json`);
+  else if(a==='copy-lineup'){try{await copyText(lineupText(location.href,getDraft(selectedId),choices,heroMap));}catch(error){toast(error.message,true);}}
   else if(a==='github-detail')showGithub(getDraft(selectedId));
   else if(a==='remove-local'){
-    const d=getDraft(id);const published=repoDrafts.some(r=>r.id===id);
-    utility(published?'Discard local edits?':'Remove browser draft?',`<div class="utility-body"><p>${published?'The shared repository version will be shown again.':'This removes the draft from this browser. Export the JSON first if you want to keep it.'}</p><div class="button-row">${button('close-utility','Cancel','','secondary')}${button('export-local','Export JSON','download','secondary',`data-id="${id}"`)}${button('confirm-remove-local','Remove browser copy','','primary',`data-id="${id}"`)}</div></div>`);
+    const published=repoDrafts.some(r=>r.id===id);
+    utility('Discard saved changes?',`<div class="utility-body"><p>${published?'Restore the draft from GitHub?':'Remove this draft?'}</p><div class="button-row">${button('close-utility','Cancel','','secondary')}${button('confirm-remove-local','Discard','','primary',`data-id="${id}"`)}</div></div>`);
   }
-  else if(a==='export-local')exportJson(cleanDraft(getDraft(id)),`${id}.json`);
   else if(a==='confirm-remove-local'){
     const next=localDrafts.filter(d=>d.id!==id);if(!write('local',next))return;
-    localDrafts=next;close('#utility-dialog');closeDetail();renderContent();toast('Browser copy removed. Repository files are unchanged.');
+    localDrafts=next;forget('editor');editor=null;close('#utility-dialog');close('#editor-dialog');closeDetail();renderContent();
   }
-  else if(a==='copy-json'){try{await navigator.clipboard.writeText(JSON.stringify(cleanDraft(getDraft(id)),null,2)+'\n');toast('JSON copied.');}catch{utility('Draft JSON',`<div class="utility-body"><p>Select and copy the JSON below.</p><textarea class="json-copy" aria-label="Draft JSON" readonly>${esc(JSON.stringify(cleanDraft(getDraft(id)),null,2))}</textarea></div>`);$('.json-copy').select();}}
-  else if(a==='import')$('#import-file').click();
-  else if(a==='export-all')exportJson(allDrafts().map(cleanDraft),'drafts.json');
-  else if(a==='settings')showSettings();
+  else if(a==='copy-json')await copyText(JSON.stringify(cleanDraft(getDraft(id)),null,2)+'\n','JSON');
   else if(a==='help')showHelp();
   else if(a==='close-utility')close('#utility-dialog');
-  else if(a==='save-settings' || a==='export-config'){
-    try{const next=collectSettings();if(a==='export-config'){exportJson(next,'config.json');return;}if(!write('config',next))return;const changed=next.teamId!==config.teamId;config=next;if(changed){matchData=read(`matches:${config.teamId}`,{teamId:config.teamId,matches:[]});matchError='';}close('#utility-dialog');renderShell();toast('Settings saved for this browser.');}
-    catch(error){$('#settings-error').hidden=false;$('#settings-error').textContent=error.message;}
-  }
   else if(a==='refresh-matches')refreshMatches(true);
   else if(a==='add-match')showAddMatch();
   else if(a==='load-match')addMatch();
-  else if(a==='export-matches')exportJson(matchData,'matches.json');
   else if(a==='draft-from-match'){
     const m=matchData.matches.find(m=>m.id===Number(el.dataset.match));const suggestions=m.heroes.map(id=>heroByNumber.get(id)?.id).filter(Boolean);
     openEditor(null,false,suggestions);editor.draft.title=`vs ${m.opponent}`;editor.draft.description=`Match ${m.id} · https://www.opendota.com/matches/${m.id}`;saveRecovery();renderEditor();
@@ -441,14 +426,17 @@ document.addEventListener('click',async event=>{
 document.addEventListener('keydown',event=>{
   const el=event.target, typing=el.matches('input,textarea,select,[contenteditable="true"]');
   const topDialog=['#utility-dialog','#picker-dialog','#editor-dialog','#detail-dialog'].find(s=>$(s).open);
-  if((event.ctrlKey || event.metaKey) && event.key.toLowerCase()==='k' && !topDialog){event.preventDefault();$('#search')?.focus();return;}
+  if((event.ctrlKey || event.metaKey) && event.key.toLowerCase()==='k' && (!topDialog || topDialog==='#picker-dialog')){event.preventDefault();$(topDialog ? '#hero-search' : '#search')?.focus();return;}
+  if(topDialog==='#picker-dialog' && el.id==='hero-search' && event.key==='Enter' && !event.isComposing){
+    event.preventDefault();const first=$$('.hero-tile:not(:disabled)').find(tile=>picker.mode==='block' ? !unavailable.has(tile.dataset.hero) : picker.mode==='bans' ? !editor.draft.bans?.includes(tile.dataset.hero) : true);if(first)pickHero(first.dataset.hero,true);return;
+  }
   if(event.key==='Escape' && !topDialog && el.id==='search'){el.value='';query='';renderContent();el.blur();return;}
   if(topDialog==='#picker-dialog' && ['ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(event.key)){
-    const tiles=$$('.hero-tile:not(:disabled)');const current=tiles.indexOf(el);const cols=Math.max(1,Math.round($('#hero-grid').clientWidth/(tiles[0]?.getBoundingClientRect().width+8)));
+    const tiles=$$('.hero-tile:not(:disabled)');const current=tiles.indexOf(el);const grid=el.closest('.hero-group-grid') || $('.hero-group-grid');const width=tiles[0]?.getBoundingClientRect().width || 120;const cols=Math.max(1,Math.round((grid?.clientWidth || 800)/(width+8)));
     if(current>=0 || el.id==='hero-search' && event.key==='ArrowDown'){event.preventDefault();const delta={ArrowDown:cols,ArrowUp:-cols,ArrowLeft:-1,ArrowRight:1}[event.key];tiles[Math.max(0,Math.min(tiles.length-1,current<0?0:current+delta))]?.focus();}return;
   }
   if(typing || event.ctrlKey || event.metaKey || event.altKey)return;
-  if(topDialog){if(topDialog==='#detail-dialog' && /^[1-5]$/.test(event.key)){event.preventDefault();$$('.detail-position')[Number(event.key)-1]?.querySelector('.hero-choice:not(:disabled)')?.focus();}return;}
+  if(topDialog){if(topDialog==='#detail-dialog' && /^[1-5]$/.test(event.key)){event.preventDefault();$(`.detail-position[data-position="${event.key}"] .hero-choice:not(:disabled)`)?.focus();}return;}
   if(event.key==='/'){event.preventDefault();$('#search')?.focus();}
   else if(event.key.toLowerCase()==='n'){event.preventDefault();openEditor();}
   else if(event.key==='?'){event.preventDefault();showHelp();}
@@ -458,7 +446,21 @@ document.addEventListener('keydown',event=>{
 });
 $('#detail-dialog').addEventListener('cancel',event=>{event.preventDefault();closeDetail();});
 $('#editor-dialog').addEventListener('cancel',()=>{editor=null;renderNavigation();});
-function readHash(){if(!heroMap)return;const id=location.hash.match(/^#draft\/([a-z0-9-]+)$/)?.[1];if(id){if(getDraft(id))showDetail(id,false);else toast('This draft is not in the shared library or this browser.',true);}else if($('#detail-dialog').open)closeDetail();}
+$('#picker-dialog').addEventListener('cancel',event=>{event.preventDefault();closePicker();});
+function readHash(){if(!heroMap)return;const link=parseDraftHash(location.hash);if(link){if(getDraft(link.id))showDetail(link.id,false,link.choices);else toast('This draft could not be found.',true);}else if($('#detail-dialog').open)closeDetail();}
+for(const dialog of $$('dialog')){
+  let backdropPointer=false;
+  const outside=event=>{const r=dialog.getBoundingClientRect();return event.clientX<r.left || event.clientX>r.right || event.clientY<r.top || event.clientY>r.bottom;};
+  dialog.addEventListener('pointerdown',event=>{backdropPointer=event.target===dialog && outside(event);});
+  dialog.addEventListener('click',event=>{
+    if(backdropPointer && event.target===dialog && outside(event)){
+      if(dialog.id==='detail-dialog')closeDetail();
+      else if(dialog.id==='picker-dialog')closePicker();
+      else {dialog.close();if(dialog.id==='editor-dialog'){editor=null;renderNavigation();}}
+    }
+    backdropPointer=false;
+  });
+}
 window.addEventListener('popstate',readHash);
 window.addEventListener('hashchange',readHash);
 window.addEventListener('storage',event=>{if(event.key==='drafts:local'){const values=read('local',[]);if(Array.isArray(values)){localDrafts=values.filter(d=>!validateDraft(d,heroMap).length).map(cleanDraft);renderContent();}}});

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { validateDraft, cleanDraft, matchesSearch, resolveLineup, githubCreateUrl, extractMatch } from '../src/domain.js';
+import { POSITIONS, validateDraft, cleanDraft, matchesSearch, resolveLineup, preferredLineup, draftHash, parseDraftHash, lineupText, githubCreateUrl, extractMatch } from '../src/domain.js';
 
 const catalog=JSON.parse(await readFile(new URL('../data/heroes.json',import.meta.url),'utf8'));
 const heroes=new Map(catalog.map(h=>[h.id,h]));
@@ -33,11 +33,35 @@ test('priority resolution backtracks to preserve five unique heroes',()=>{
   const result=resolveLineup(draft(),new Set(['puck']));
   assert.equal(result[1],'sven');assert.equal(result[2],'luna');assert.equal(new Set(Object.values(result)).size,5);
 });
-test('unavailable heroes and conflicting position locks never yield an invalid lineup',()=>{
+test('unavailable heroes and conflicting required choices never yield an invalid lineup',()=>{
   assert.equal(resolveLineup(draft(),new Set(['luna','sven'])),null);
   assert.equal(resolveLineup(draft(),new Set(),{1:'luna',2:'luna'}),null);
   assert.equal(resolveLineup(draft(),new Set(['luna']),{1:'luna'}),null);
   assert.equal(resolveLineup(draft(),new Set(),{1:'sven'})[1],'sven');
+});
+test('key bans are optional, validated, and preserved for GitHub',()=>{
+  assert.deepEqual(validateDraft({...draft(),bans:['pudge','silencer']},heroes),[]);
+  assert.deepEqual(cleanDraft({...draft(),bans:['pudge','silencer']}).bans,['pudge','silencer']);
+  assert.equal(cleanDraft({...draft(),bans:[]}).bans,undefined);
+  for(const bans of [['pudge','pudge'],['not-a-hero'],{}])assert.ok(validateDraft({...draft(),bans},heroes).length);
+});
+test('choosing a hero preserves other choices when possible without a lock toggle',()=>{
+  const current=resolveLineup(draft());
+  const selected=preferredLineup(draft(),current,new Set(),{1:'sven'});
+  assert.equal(selected[1],'sven');assert.equal(selected[2],current[2]);
+  assert.deepEqual(preferredLineup(draft(),selected,new Set(),{1:'sven'}),selected);
+  const flex=preferredLineup(draft(),current,new Set(),{2:'luna'});
+  assert.equal(flex[1],'sven');assert.equal(flex[2],'luna');
+});
+test('shared draft links and clipboard text preserve choices in lane order',()=>{
+  assert.deepEqual(POSITIONS,[1,5,2,4,3]);
+  const choices=preferredLineup(draft(),{},new Set(),{1:'sven'});
+  const hash=draftHash(draft().id,choices);assert.deepEqual(parseDraftHash(hash),{id:draft().id,choices});
+  const text=lineupText('https://example.com/team-drafts/',draft(),choices,heroes);
+  assert.equal(text,`https://example.com/team-drafts/${hash}\npos 1: Sven\npos 5: Lich\n\npos 2: Puck\n\npos 4: Rubick\npos 3: Axe`);
+  assert.equal(parseDraftHash('#unrelated'),null);
+  assert.throws(()=>lineupText('https://example.com',draft(),{},heroes),/five different/);
+  assert.equal(resolveLineup(draft(),new Set(),parseDraftHash('#draft/test-draft?pos1=unknown').choices),null);
 });
 test('GitHub handoff carries a valid JSON file without credentials',()=>{
   const config={repository:'maakep/dota-team-drafts',branch:'main'};const url=new URL(githubCreateUrl(config,draft()));

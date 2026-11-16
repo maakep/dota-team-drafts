@@ -1,6 +1,9 @@
-export const POSITIONS = [1, 2, 3, 4, 5];
+export const POSITIONS = [1, 5, 2, 4, 3];
 export const ROLES = ['Carry', 'Mid', 'Offlane', 'Soft support', 'Hard support'];
 export const MAX_HEROES = 8;
+export const MAX_BANS = 16;
+export const MATCH_LIMIT = 20;
+export const ATTRIBUTES = [['str', 'Strength'], ['agi', 'Agility'], ['int', 'Intelligence'], ['all', 'Universal']];
 
 export function validateDraft(value, heroIds) {
   const errors = [];
@@ -9,6 +12,7 @@ export function validateDraft(value, heroIds) {
   if (typeof value.title !== 'string' || !value.title.trim() || value.title.length > 100) errors.push('Title must be 1–100 characters.');
   if (value.description !== undefined && (typeof value.description !== 'string' || value.description.length > 3000)) errors.push('Description must be text, up to 3,000 characters.');
   if (value.tags !== undefined && (!Array.isArray(value.tags) || value.tags.length > 12 || value.tags.some(t => typeof t !== 'string' || !t.trim() || t.length > 30))) errors.push('Use up to 12 tags, each 1–30 characters.');
+  if (value.bans !== undefined && (!Array.isArray(value.bans) || value.bans.length > MAX_BANS || value.bans.some(id => !heroIds.has(id)) || new Set(value.bans).size !== value.bans.length)) errors.push(`Bans must be a list of up to ${MAX_BANS} different heroes.`);
   const primary = [];
   for (const p of POSITIONS) {
     const heroes = value[`pos${p}`];
@@ -25,6 +29,7 @@ export function cleanDraft(value) {
   const out = { id: value.id, title: value.title.trim() };
   if (value.description?.trim()) out.description = value.description.trim();
   if (value.tags?.length) out.tags = [...new Set(value.tags.map(t => t.trim()).filter(Boolean))];
+  if (value.bans?.length) out.bans = [...value.bans];
   for (const p of POSITIONS) out[`pos${p}`] = [...value[`pos${p}`]];
   return out;
 }
@@ -41,13 +46,13 @@ export function matchesSearch(draft, query, heroes, position = '') {
 }
 
 // Find a complete, unique lineup in priority order. Greedy selection fails for flex heroes.
-export function resolveLineup(draft, unavailable = new Set(), locks = {}) {
+export function resolveLineup(draft, unavailable = new Set(), required = {}) {
   const selected = {};
   const used = new Set();
   function visit(index) {
     if (index === POSITIONS.length) return true;
     const p = POSITIONS[index];
-    const candidates = locks[p] ? [locks[p]] : draft[`pos${p}`];
+    const candidates = required[p] ? [required[p]] : draft[`pos${p}`];
     for (const hero of candidates) {
       if (!draft[`pos${p}`].includes(hero) || unavailable.has(hero) || used.has(hero)) continue;
       selected[p] = hero; used.add(hero);
@@ -57,6 +62,37 @@ export function resolveLineup(draft, unavailable = new Set(), locks = {}) {
     return false;
   }
   return visit(0) ? selected : null;
+}
+
+export function preferredLineup(draft, current = {}, unavailable = new Set(), required = {}) {
+  const preferred = { ...draft };
+  for (const p of POSITIONS) {
+    const candidates = draft[`pos${p}`];
+    preferred[`pos${p}`] = candidates.includes(current[p]) ? [current[p], ...candidates.filter(id => id !== current[p])] : candidates;
+  }
+  return resolveLineup(preferred, unavailable, required);
+}
+
+export function draftHash(id, choices = {}) {
+  const params = new URLSearchParams();
+  for (const p of POSITIONS) if (choices[p]) params.set(`pos${p}`, choices[p]);
+  return `#draft/${id}${params.size ? `?${params}` : ''}`;
+}
+
+export function parseDraftHash(hash) {
+  const match = hash.match(/^#draft\/([a-z0-9-]+)(?:\?(.*))?$/);
+  if (!match) return null;
+  const params = new URLSearchParams(match[2] || '');
+  return { id: match[1], choices: Object.fromEntries(POSITIONS.filter(p => params.has(`pos${p}`)).map(p => [p, params.get(`pos${p}`)])) };
+}
+
+export function lineupText(baseUrl, draft, choices, heroes) {
+  if (!POSITIONS.every(p => choices[p])) throw new Error('Choose five different heroes before copying.');
+  const lineup = resolveLineup(draft, new Set(), choices);
+  if (!lineup) throw new Error('Choose five different heroes before copying.');
+  const url = new URL(baseUrl); url.hash = draftHash(draft.id, lineup);
+  const lines = POSITIONS.map(p => `pos ${p}: ${heroes.get(lineup[p])?.name || lineup[p]}`);
+  return `${url.href}\n${lines[0]}\n${lines[1]}\n\n${lines[2]}\n\n${lines[3]}\n${lines[4]}`;
 }
 
 export function githubCreateUrl(config, draft) {
@@ -81,11 +117,13 @@ export function extractMatch(summary, details, teamId) {
   const picked = side => (details.picks_bans ?? []).filter(p => p.is_pick && p.team === side && p.hero_id > 0).sort((a,b) => a.order - b.order).map(p => p.hero_id);
   const ownIds = own.length ? own.sort((a,b) => a.player_slot - b.player_slot).map(p => p.hero_id) : picked(radiant ? 0 : 1);
   const enemyIds = enemy.length ? enemy.sort((a,b) => a.player_slot - b.player_slot).map(p => p.hero_id) : picked(radiant ? 1 : 0);
+  const opponentId = summary.opposing_team_id || (radiant ? details.dire_team_id : details.radiant_team_id) || null;
   return {
     id: summary.match_id ?? details.match_id,
     startTime: summary.start_time ?? details.start_time,
     duration: summary.duration ?? details.duration,
-    opponent: summary.opposing_team_name || (radiant ? details.dire_team?.name : details.radiant_team?.name) || 'Unknown team',
+    opponent: summary.opposing_team_name || (radiant ? details.dire_team?.name || details.dire_name : details.radiant_team?.name || details.radiant_name) || (opponentId ? `Team ${opponentId}` : 'Unknown team'),
+    opponentId,
     league: summary.league_name || details.league?.name || '',
     radiant,
     won: typeof (summary.radiant_win ?? details.radiant_win) === 'boolean' ? (summary.radiant_win ?? details.radiant_win) === radiant : null,

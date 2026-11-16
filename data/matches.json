@@ -1,7 +1,508 @@
 {
   "teamId": 9838881,
   "teamName": "De 4 clownerna och Poppe",
-  "updatedAt": "2026-11-16T14:23:15.233Z",
-  "matches": [],
+  "updatedAt": "2026-11-16T15:03:10.841Z",
+  "matches": [
+    {
+      "id": 9082244244,
+      "startTime": 1794165291,
+      "duration": 2013,
+      "opponent": "Lake Stoug",
+      "opponentId": 10208107,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": true,
+      "heroes": [
+        49,
+        120,
+        67,
+        155,
+        87
+      ],
+      "opponents": [
+        113,
+        111,
+        90,
+        54,
+        60
+      ],
+      "complete": true
+    },
+    {
+      "id": 9082143632,
+      "startTime": 1794161161,
+      "duration": 2363,
+      "opponent": "Lake Stoug",
+      "opponentId": 10208107,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": true,
+      "heroes": [
+        120,
+        48,
+        98,
+        110,
+        26
+      ],
+      "opponents": [
+        113,
+        111,
+        14,
+        8,
+        43
+      ],
+      "complete": true
+    },
+    {
+      "id": 9072195147,
+      "startTime": 1793559630,
+      "duration": 2421,
+      "opponent": "Lich Gaming",
+      "opponentId": 9647120,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": false,
+      "heroes": [
+        93,
+        9,
+        135,
+        7,
+        86
+      ],
+      "opponents": [
+        107,
+        72,
+        33,
+        131,
+        67
+      ],
+      "complete": true
+    },
+    {
+      "id": 9072104731,
+      "startTime": 1793556088,
+      "duration": 2149,
+      "opponent": "Lich Gaming",
+      "opponentId": 9647120,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": true,
+      "heroes": [
+        105,
+        48,
+        49,
+        74,
+        155
+      ],
+      "opponents": [
+        35,
+        119,
+        55,
+        71,
+        18
+      ],
+      "complete": true
+    },
+    {
+      "id": 9061931090,
+      "startTime": 1792954878,
+      "duration": 2859,
+      "opponent": "Vasaplan Enjoyers",
+      "opponentId": 10207775,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": true,
+      "heroes": [
+        48,
+        51,
+        55,
+        64,
+        76
+      ],
+      "opponents": [
+        88,
+        26,
+        128,
+        6,
+        85
+      ],
+      "complete": true
+    },
+    {
+      "id": 9061836495,
+      "startTime": 1792951442,
+      "duration": 2093,
+      "opponent": "Vasaplan Enjoyers",
+      "opponentId": 10207775,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": true,
+      "heroes": [
+        27,
+        48,
+        60,
+        9,
+        107
+      ],
+      "opponents": [
+        49,
+        105,
+        74,
+        119,
+        18
+      ],
+      "complete": true
+    },
+    {
+      "id": 9040573509,
+      "startTime": 1791742031,
+      "duration": 3406,
+      "opponent": "Assistenterna",
+      "opponentId": 9855411,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": true,
+      "heroes": [
+        67,
+        74,
+        2,
+        86,
+        30
+      ],
+      "opponents": [
+        123,
+        50,
+        36,
+        70,
+        29
+      ],
+      "complete": true
+    },
+    {
+      "id": 9040462840,
+      "startTime": 1791738145,
+      "duration": 2429,
+      "opponent": "Assistenterna",
+      "opponentId": 9855411,
+      "league": "E-Sparven Season 6",
+      "radiant": false,
+      "won": true,
+      "heroes": [
+        93,
+        76,
+        135,
+        26,
+        9
+      ],
+      "opponents": [
+        123,
+        27,
+        55,
+        53,
+        42
+      ],
+      "complete": true
+    },
+    {
+      "id": 9019281274,
+      "startTime": 1790531822,
+      "duration": 2071,
+      "opponent": "Dansbanders",
+      "opponentId": 9254880,
+      "league": "E-Sparven Season 6",
+      "radiant": false,
+      "won": false,
+      "heroes": [
+        13,
+        79,
+        107,
+        48,
+        87
+      ],
+      "opponents": [
+        54,
+        131,
+        49,
+        9,
+        29
+      ],
+      "complete": true
+    },
+    {
+      "id": 9019190405,
+      "startTime": 1790528492,
+      "duration": 2121,
+      "opponent": "Dansbanders",
+      "opponentId": 9254880,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": true,
+      "heroes": [
+        123,
+        48,
+        14,
+        7,
+        155
+      ],
+      "opponents": [
+        39,
+        56,
+        26,
+        108,
+        64
+      ],
+      "complete": true
+    },
+    {
+      "id": 9008649464,
+      "startTime": 1789927652,
+      "duration": 4120,
+      "opponent": "TIF Esport",
+      "opponentId": 9530067,
+      "league": "E-Sparven Season 6",
+      "radiant": false,
+      "won": false,
+      "heroes": [
+        36,
+        27,
+        60,
+        35,
+        123
+      ],
+      "opponents": [
+        9,
+        87,
+        120,
+        101,
+        54
+      ],
+      "complete": true
+    },
+    {
+      "id": 9008543782,
+      "startTime": 1789923790,
+      "duration": 2342,
+      "opponent": "TIF Esport",
+      "opponentId": 9530067,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": true,
+      "heroes": [
+        27,
+        17,
+        60,
+        36,
+        9
+      ],
+      "opponents": [
+        45,
+        112,
+        49,
+        47,
+        19
+      ],
+      "complete": true
+    },
+    {
+      "id": 8986370156,
+      "startTime": 1788718617,
+      "duration": 2318,
+      "opponent": "Lake Stoug",
+      "opponentId": 10208107,
+      "league": "E-Sparven Season 6",
+      "radiant": false,
+      "won": true,
+      "heroes": [
+        80,
+        119,
+        60,
+        25,
+        87
+      ],
+      "opponents": [
+        82,
+        57,
+        43,
+        74,
+        49
+      ],
+      "complete": true
+    },
+    {
+      "id": 8986256934,
+      "startTime": 1788714399,
+      "duration": 2467,
+      "opponent": "Lake Stoug",
+      "opponentId": 10208107,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": true,
+      "heroes": [
+        48,
+        16,
+        29,
+        123,
+        64
+      ],
+      "opponents": [
+        77,
+        74,
+        85,
+        60,
+        15
+      ],
+      "complete": true
+    },
+    {
+      "id": 8842878807,
+      "startTime": 1780858639,
+      "duration": 2432,
+      "opponent": "Heroes of Norrpan ",
+      "opponentId": 9593490,
+      "league": "E-Sparven Season 5",
+      "radiant": false,
+      "won": false,
+      "heroes": [
+        22,
+        41,
+        129,
+        64,
+        68
+      ],
+      "opponents": [
+        11,
+        47,
+        71,
+        20,
+        2
+      ],
+      "complete": true
+    },
+    {
+      "id": 8842777520,
+      "startTime": 1780853667,
+      "duration": 3218,
+      "opponent": "Heroes of Norrpan ",
+      "opponentId": 9593490,
+      "league": "E-Sparven Season 5",
+      "radiant": true,
+      "won": false,
+      "heroes": [
+        17,
+        63,
+        60,
+        111,
+        64
+      ],
+      "opponents": [
+        80,
+        47,
+        79,
+        51,
+        29
+      ],
+      "complete": true
+    },
+    {
+      "id": 8833596862,
+      "startTime": 1780255352,
+      "duration": 3448,
+      "opponent": "Dansbanders",
+      "opponentId": 9254880,
+      "league": "E-Sparven Season 5",
+      "radiant": false,
+      "won": true,
+      "heroes": [
+        17,
+        63,
+        129,
+        87,
+        35
+      ],
+      "opponents": [
+        126,
+        22,
+        60,
+        110,
+        54
+      ],
+      "complete": true
+    },
+    {
+      "id": 8833500098,
+      "startTime": 1780250820,
+      "duration": 3182,
+      "opponent": "Dansbanders",
+      "opponentId": 9254880,
+      "league": "E-Sparven Season 5",
+      "radiant": false,
+      "won": true,
+      "heroes": [
+        35,
+        36,
+        129,
+        106,
+        87
+      ],
+      "opponents": [
+        128,
+        11,
+        26,
+        69,
+        136
+      ],
+      "complete": true
+    },
+    {
+      "id": 8833410709,
+      "startTime": 1780246820,
+      "duration": 2634,
+      "opponent": "Dansbanders",
+      "opponentId": 9254880,
+      "league": "E-Sparven Season 5",
+      "radiant": false,
+      "won": false,
+      "heroes": [
+        22,
+        41,
+        71,
+        74,
+        30
+      ],
+      "opponents": [
+        106,
+        6,
+        28,
+        128,
+        75
+      ],
+      "complete": true
+    },
+    {
+      "id": 8824131297,
+      "startTime": 1779646292,
+      "duration": 2439,
+      "opponent": "Färskt Kaffe",
+      "opponentId": 9471875,
+      "league": "E-Sparven Season 5",
+      "radiant": true,
+      "won": true,
+      "heroes": [
+        86,
+        111,
+        100,
+        70,
+        64
+      ],
+      "opponents": [
+        53,
+        128,
+        31,
+        27,
+        108
+      ],
+      "complete": true
+    }
+  ],
   "warnings": []
 }
