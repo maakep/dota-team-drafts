@@ -1,0 +1,1089 @@
+[
+  {
+    "id": "abaddon",
+    "heroId": 102,
+    "name": "Abaddon",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/abaddon.png"
+  },
+  {
+    "id": "alchemist",
+    "heroId": 73,
+    "name": "Alchemist",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/alchemist.png"
+  },
+  {
+    "id": "ancient_apparition",
+    "heroId": 68,
+    "name": "Ancient Apparition",
+    "attribute": "int",
+    "aliases": [
+      "aa"
+    ],
+    "image": "assets/heroes/ancient_apparition.png"
+  },
+  {
+    "id": "antimage",
+    "heroId": 1,
+    "name": "Anti-Mage",
+    "attribute": "agi",
+    "aliases": [
+      "am",
+      "anti mage"
+    ],
+    "image": "assets/heroes/antimage.png"
+  },
+  {
+    "id": "arc_warden",
+    "heroId": 113,
+    "name": "Arc Warden",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/arc_warden.png"
+  },
+  {
+    "id": "axe",
+    "heroId": 2,
+    "name": "Axe",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/axe.png"
+  },
+  {
+    "id": "bane",
+    "heroId": 3,
+    "name": "Bane",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/bane.png"
+  },
+  {
+    "id": "batrider",
+    "heroId": 65,
+    "name": "Batrider",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/batrider.png"
+  },
+  {
+    "id": "beastmaster",
+    "heroId": 38,
+    "name": "Beastmaster",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/beastmaster.png"
+  },
+  {
+    "id": "bloodseeker",
+    "heroId": 4,
+    "name": "Bloodseeker",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/bloodseeker.png"
+  },
+  {
+    "id": "bounty_hunter",
+    "heroId": 62,
+    "name": "Bounty Hunter",
+    "attribute": "agi",
+    "aliases": [
+      "bh"
+    ],
+    "image": "assets/heroes/bounty_hunter.png"
+  },
+  {
+    "id": "brewmaster",
+    "heroId": 78,
+    "name": "Brewmaster",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/brewmaster.png"
+  },
+  {
+    "id": "bristleback",
+    "heroId": 99,
+    "name": "Bristleback",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/bristleback.png"
+  },
+  {
+    "id": "broodmother",
+    "heroId": 61,
+    "name": "Broodmother",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/broodmother.png"
+  },
+  {
+    "id": "centaur",
+    "heroId": 96,
+    "name": "Centaur Warrunner",
+    "attribute": "str",
+    "aliases": [
+      "centaur warrunner",
+      "cw"
+    ],
+    "image": "assets/heroes/centaur.png"
+  },
+  {
+    "id": "chaos_knight",
+    "heroId": 81,
+    "name": "Chaos Knight",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/chaos_knight.png"
+  },
+  {
+    "id": "chen",
+    "heroId": 66,
+    "name": "Chen",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/chen.png"
+  },
+  {
+    "id": "clinkz",
+    "heroId": 56,
+    "name": "Clinkz",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/clinkz.png"
+  },
+  {
+    "id": "rattletrap",
+    "heroId": 51,
+    "name": "Clockwerk",
+    "attribute": "str",
+    "aliases": [
+      "clockwerk",
+      "clock"
+    ],
+    "image": "assets/heroes/rattletrap.png"
+  },
+  {
+    "id": "crystal_maiden",
+    "heroId": 5,
+    "name": "Crystal Maiden",
+    "attribute": "int",
+    "aliases": [
+      "cm"
+    ],
+    "image": "assets/heroes/crystal_maiden.png"
+  },
+  {
+    "id": "dark_seer",
+    "heroId": 55,
+    "name": "Dark Seer",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/dark_seer.png"
+  },
+  {
+    "id": "dark_willow",
+    "heroId": 119,
+    "name": "Dark Willow",
+    "attribute": "int",
+    "aliases": [
+      "willow"
+    ],
+    "image": "assets/heroes/dark_willow.png"
+  },
+  {
+    "id": "dawnbreaker",
+    "heroId": 135,
+    "name": "Dawnbreaker",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/dawnbreaker.png"
+  },
+  {
+    "id": "dazzle",
+    "heroId": 50,
+    "name": "Dazzle",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/dazzle.png"
+  },
+  {
+    "id": "death_prophet",
+    "heroId": 43,
+    "name": "Death Prophet",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/death_prophet.png"
+  },
+  {
+    "id": "disruptor",
+    "heroId": 87,
+    "name": "Disruptor",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/disruptor.png"
+  },
+  {
+    "id": "doom_bringer",
+    "heroId": 69,
+    "name": "Doom",
+    "attribute": "str",
+    "aliases": [
+      "doom"
+    ],
+    "image": "assets/heroes/doom_bringer.png"
+  },
+  {
+    "id": "dragon_knight",
+    "heroId": 49,
+    "name": "Dragon Knight",
+    "attribute": "str",
+    "aliases": [
+      "dk"
+    ],
+    "image": "assets/heroes/dragon_knight.png"
+  },
+  {
+    "id": "drow_ranger",
+    "heroId": 6,
+    "name": "Drow Ranger",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/drow_ranger.png"
+  },
+  {
+    "id": "earth_spirit",
+    "heroId": 107,
+    "name": "Earth Spirit",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/earth_spirit.png"
+  },
+  {
+    "id": "earthshaker",
+    "heroId": 7,
+    "name": "Earthshaker",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/earthshaker.png"
+  },
+  {
+    "id": "elder_titan",
+    "heroId": 103,
+    "name": "Elder Titan",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/elder_titan.png"
+  },
+  {
+    "id": "ember_spirit",
+    "heroId": 106,
+    "name": "Ember Spirit",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/ember_spirit.png"
+  },
+  {
+    "id": "enchantress",
+    "heroId": 58,
+    "name": "Enchantress",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/enchantress.png"
+  },
+  {
+    "id": "enigma",
+    "heroId": 33,
+    "name": "Enigma",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/enigma.png"
+  },
+  {
+    "id": "faceless_void",
+    "heroId": 41,
+    "name": "Faceless Void",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/faceless_void.png"
+  },
+  {
+    "id": "grimstroke",
+    "heroId": 121,
+    "name": "Grimstroke",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/grimstroke.png"
+  },
+  {
+    "id": "gyrocopter",
+    "heroId": 72,
+    "name": "Gyrocopter",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/gyrocopter.png"
+  },
+  {
+    "id": "hoodwink",
+    "heroId": 123,
+    "name": "Hoodwink",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/hoodwink.png"
+  },
+  {
+    "id": "huskar",
+    "heroId": 59,
+    "name": "Huskar",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/huskar.png"
+  },
+  {
+    "id": "invoker",
+    "heroId": 74,
+    "name": "Invoker",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/invoker.png"
+  },
+  {
+    "id": "wisp",
+    "heroId": 91,
+    "name": "Io",
+    "attribute": "all",
+    "aliases": [
+      "io"
+    ],
+    "image": "assets/heroes/wisp.png"
+  },
+  {
+    "id": "jakiro",
+    "heroId": 64,
+    "name": "Jakiro",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/jakiro.png"
+  },
+  {
+    "id": "juggernaut",
+    "heroId": 8,
+    "name": "Juggernaut",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/juggernaut.png"
+  },
+  {
+    "id": "keeper_of_the_light",
+    "heroId": 90,
+    "name": "Keeper of the Light",
+    "attribute": "int",
+    "aliases": [
+      "kotl"
+    ],
+    "image": "assets/heroes/keeper_of_the_light.png"
+  },
+  {
+    "id": "kez",
+    "heroId": 145,
+    "name": "Kez",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/kez.png"
+  },
+  {
+    "id": "kunkka",
+    "heroId": 23,
+    "name": "Kunkka",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/kunkka.png"
+  },
+  {
+    "id": "largo",
+    "heroId": 155,
+    "name": "Largo",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/largo.png"
+  },
+  {
+    "id": "legion_commander",
+    "heroId": 104,
+    "name": "Legion Commander",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/legion_commander.png"
+  },
+  {
+    "id": "leshrac",
+    "heroId": 52,
+    "name": "Leshrac",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/leshrac.png"
+  },
+  {
+    "id": "lich",
+    "heroId": 31,
+    "name": "Lich",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/lich.png"
+  },
+  {
+    "id": "life_stealer",
+    "heroId": 54,
+    "name": "Lifestealer",
+    "attribute": "str",
+    "aliases": [
+      "lifestealer",
+      "ls"
+    ],
+    "image": "assets/heroes/life_stealer.png"
+  },
+  {
+    "id": "lina",
+    "heroId": 25,
+    "name": "Lina",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/lina.png"
+  },
+  {
+    "id": "lion",
+    "heroId": 26,
+    "name": "Lion",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/lion.png"
+  },
+  {
+    "id": "lone_druid",
+    "heroId": 80,
+    "name": "Lone Druid",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/lone_druid.png"
+  },
+  {
+    "id": "luna",
+    "heroId": 48,
+    "name": "Luna",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/luna.png"
+  },
+  {
+    "id": "lycan",
+    "heroId": 77,
+    "name": "Lycan",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/lycan.png"
+  },
+  {
+    "id": "magnataur",
+    "heroId": 97,
+    "name": "Magnus",
+    "attribute": "all",
+    "aliases": [
+      "magnus"
+    ],
+    "image": "assets/heroes/magnataur.png"
+  },
+  {
+    "id": "marci",
+    "heroId": 136,
+    "name": "Marci",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/marci.png"
+  },
+  {
+    "id": "mars",
+    "heroId": 129,
+    "name": "Mars",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/mars.png"
+  },
+  {
+    "id": "medusa",
+    "heroId": 94,
+    "name": "Medusa",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/medusa.png"
+  },
+  {
+    "id": "meepo",
+    "heroId": 82,
+    "name": "Meepo",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/meepo.png"
+  },
+  {
+    "id": "mirana",
+    "heroId": 9,
+    "name": "Mirana",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/mirana.png"
+  },
+  {
+    "id": "monkey_king",
+    "heroId": 114,
+    "name": "Monkey King",
+    "attribute": "agi",
+    "aliases": [
+      "mk"
+    ],
+    "image": "assets/heroes/monkey_king.png"
+  },
+  {
+    "id": "morphling",
+    "heroId": 10,
+    "name": "Morphling",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/morphling.png"
+  },
+  {
+    "id": "muerta",
+    "heroId": 138,
+    "name": "Muerta",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/muerta.png"
+  },
+  {
+    "id": "naga_siren",
+    "heroId": 89,
+    "name": "Naga Siren",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/naga_siren.png"
+  },
+  {
+    "id": "furion",
+    "heroId": 53,
+    "name": "Nature's Prophet",
+    "attribute": "all",
+    "aliases": [
+      "nature prophet",
+      "np"
+    ],
+    "image": "assets/heroes/furion.png"
+  },
+  {
+    "id": "necrolyte",
+    "heroId": 36,
+    "name": "Necrophos",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/necrolyte.png"
+  },
+  {
+    "id": "night_stalker",
+    "heroId": 60,
+    "name": "Night Stalker",
+    "attribute": "str",
+    "aliases": [
+      "ns"
+    ],
+    "image": "assets/heroes/night_stalker.png"
+  },
+  {
+    "id": "nyx_assassin",
+    "heroId": 88,
+    "name": "Nyx Assassin",
+    "attribute": "all",
+    "aliases": [
+      "nyx"
+    ],
+    "image": "assets/heroes/nyx_assassin.png"
+  },
+  {
+    "id": "ogre_magi",
+    "heroId": 84,
+    "name": "Ogre Magi",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/ogre_magi.png"
+  },
+  {
+    "id": "omniknight",
+    "heroId": 57,
+    "name": "Omniknight",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/omniknight.png"
+  },
+  {
+    "id": "oracle",
+    "heroId": 111,
+    "name": "Oracle",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/oracle.png"
+  },
+  {
+    "id": "obsidian_destroyer",
+    "heroId": 76,
+    "name": "Outworld Devourer",
+    "attribute": "int",
+    "aliases": [
+      "outworld destroyer",
+      "od"
+    ],
+    "image": "assets/heroes/obsidian_destroyer.png"
+  },
+  {
+    "id": "pangolier",
+    "heroId": 120,
+    "name": "Pangolier",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/pangolier.png"
+  },
+  {
+    "id": "phantom_assassin",
+    "heroId": 44,
+    "name": "Phantom Assassin",
+    "attribute": "agi",
+    "aliases": [
+      "pa"
+    ],
+    "image": "assets/heroes/phantom_assassin.png"
+  },
+  {
+    "id": "phantom_lancer",
+    "heroId": 12,
+    "name": "Phantom Lancer",
+    "attribute": "agi",
+    "aliases": [
+      "pl"
+    ],
+    "image": "assets/heroes/phantom_lancer.png"
+  },
+  {
+    "id": "phoenix",
+    "heroId": 110,
+    "name": "Phoenix",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/phoenix.png"
+  },
+  {
+    "id": "primal_beast",
+    "heroId": 137,
+    "name": "Primal Beast",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/primal_beast.png"
+  },
+  {
+    "id": "puck",
+    "heroId": 13,
+    "name": "Puck",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/puck.png"
+  },
+  {
+    "id": "pudge",
+    "heroId": 14,
+    "name": "Pudge",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/pudge.png"
+  },
+  {
+    "id": "pugna",
+    "heroId": 45,
+    "name": "Pugna",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/pugna.png"
+  },
+  {
+    "id": "queenofpain",
+    "heroId": 39,
+    "name": "Queen of Pain",
+    "attribute": "int",
+    "aliases": [
+      "queen of pain",
+      "qop"
+    ],
+    "image": "assets/heroes/queenofpain.png"
+  },
+  {
+    "id": "razor",
+    "heroId": 15,
+    "name": "Razor",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/razor.png"
+  },
+  {
+    "id": "riki",
+    "heroId": 32,
+    "name": "Riki",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/riki.png"
+  },
+  {
+    "id": "ringmaster",
+    "heroId": 131,
+    "name": "Ring Master",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/ringmaster.png"
+  },
+  {
+    "id": "rubick",
+    "heroId": 86,
+    "name": "Rubick",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/rubick.png"
+  },
+  {
+    "id": "sand_king",
+    "heroId": 16,
+    "name": "Sand King",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/sand_king.png"
+  },
+  {
+    "id": "shadow_demon",
+    "heroId": 79,
+    "name": "Shadow Demon",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/shadow_demon.png"
+  },
+  {
+    "id": "nevermore",
+    "heroId": 11,
+    "name": "Shadow Fiend",
+    "attribute": "agi",
+    "aliases": [
+      "shadow fiend",
+      "sf"
+    ],
+    "image": "assets/heroes/nevermore.png"
+  },
+  {
+    "id": "shadow_shaman",
+    "heroId": 27,
+    "name": "Shadow Shaman",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/shadow_shaman.png"
+  },
+  {
+    "id": "silencer",
+    "heroId": 75,
+    "name": "Silencer",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/silencer.png"
+  },
+  {
+    "id": "skywrath_mage",
+    "heroId": 101,
+    "name": "Skywrath Mage",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/skywrath_mage.png"
+  },
+  {
+    "id": "slardar",
+    "heroId": 28,
+    "name": "Slardar",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/slardar.png"
+  },
+  {
+    "id": "slark",
+    "heroId": 93,
+    "name": "Slark",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/slark.png"
+  },
+  {
+    "id": "snapfire",
+    "heroId": 128,
+    "name": "Snapfire",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/snapfire.png"
+  },
+  {
+    "id": "sniper",
+    "heroId": 35,
+    "name": "Sniper",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/sniper.png"
+  },
+  {
+    "id": "spectre",
+    "heroId": 67,
+    "name": "Spectre",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/spectre.png"
+  },
+  {
+    "id": "spirit_breaker",
+    "heroId": 71,
+    "name": "Spirit Breaker",
+    "attribute": "str",
+    "aliases": [
+      "sb",
+      "bara"
+    ],
+    "image": "assets/heroes/spirit_breaker.png"
+  },
+  {
+    "id": "storm_spirit",
+    "heroId": 17,
+    "name": "Storm Spirit",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/storm_spirit.png"
+  },
+  {
+    "id": "sven",
+    "heroId": 18,
+    "name": "Sven",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/sven.png"
+  },
+  {
+    "id": "techies",
+    "heroId": 105,
+    "name": "Techies",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/techies.png"
+  },
+  {
+    "id": "templar_assassin",
+    "heroId": 46,
+    "name": "Templar Assassin",
+    "attribute": "agi",
+    "aliases": [
+      "ta"
+    ],
+    "image": "assets/heroes/templar_assassin.png"
+  },
+  {
+    "id": "terrorblade",
+    "heroId": 109,
+    "name": "Terrorblade",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/terrorblade.png"
+  },
+  {
+    "id": "tidehunter",
+    "heroId": 29,
+    "name": "Tidehunter",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/tidehunter.png"
+  },
+  {
+    "id": "shredder",
+    "heroId": 98,
+    "name": "Timbersaw",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/shredder.png"
+  },
+  {
+    "id": "tinker",
+    "heroId": 34,
+    "name": "Tinker",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/tinker.png"
+  },
+  {
+    "id": "tiny",
+    "heroId": 19,
+    "name": "Tiny",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/tiny.png"
+  },
+  {
+    "id": "treant",
+    "heroId": 83,
+    "name": "Treant Protector",
+    "attribute": "str",
+    "aliases": [
+      "treant protector",
+      "tree"
+    ],
+    "image": "assets/heroes/treant.png"
+  },
+  {
+    "id": "troll_warlord",
+    "heroId": 95,
+    "name": "Troll Warlord",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/troll_warlord.png"
+  },
+  {
+    "id": "tusk",
+    "heroId": 100,
+    "name": "Tusk",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/tusk.png"
+  },
+  {
+    "id": "abyssal_underlord",
+    "heroId": 108,
+    "name": "Underlord",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/abyssal_underlord.png"
+  },
+  {
+    "id": "undying",
+    "heroId": 85,
+    "name": "Undying",
+    "attribute": "str",
+    "aliases": [],
+    "image": "assets/heroes/undying.png"
+  },
+  {
+    "id": "ursa",
+    "heroId": 70,
+    "name": "Ursa",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/ursa.png"
+  },
+  {
+    "id": "vengefulspirit",
+    "heroId": 20,
+    "name": "Vengeful Spirit",
+    "attribute": "agi",
+    "aliases": [
+      "vengeful spirit",
+      "vs"
+    ],
+    "image": "assets/heroes/vengefulspirit.png"
+  },
+  {
+    "id": "venomancer",
+    "heroId": 40,
+    "name": "Venomancer",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/venomancer.png"
+  },
+  {
+    "id": "viper",
+    "heroId": 47,
+    "name": "Viper",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/viper.png"
+  },
+  {
+    "id": "visage",
+    "heroId": 92,
+    "name": "Visage",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/visage.png"
+  },
+  {
+    "id": "void_spirit",
+    "heroId": 126,
+    "name": "Void Spirit",
+    "attribute": "all",
+    "aliases": [],
+    "image": "assets/heroes/void_spirit.png"
+  },
+  {
+    "id": "warlock",
+    "heroId": 37,
+    "name": "Warlock",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/warlock.png"
+  },
+  {
+    "id": "weaver",
+    "heroId": 63,
+    "name": "Weaver",
+    "attribute": "agi",
+    "aliases": [],
+    "image": "assets/heroes/weaver.png"
+  },
+  {
+    "id": "windrunner",
+    "heroId": 21,
+    "name": "Windranger",
+    "attribute": "all",
+    "aliases": [
+      "windranger",
+      "wr"
+    ],
+    "image": "assets/heroes/windrunner.png"
+  },
+  {
+    "id": "winter_wyvern",
+    "heroId": 112,
+    "name": "Winter Wyvern",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/winter_wyvern.png"
+  },
+  {
+    "id": "witch_doctor",
+    "heroId": 30,
+    "name": "Witch Doctor",
+    "attribute": "int",
+    "aliases": [],
+    "image": "assets/heroes/witch_doctor.png"
+  },
+  {
+    "id": "skeleton_king",
+    "heroId": 42,
+    "name": "Wraith King",
+    "attribute": "str",
+    "aliases": [
+      "wraith king",
+      "wk"
+    ],
+    "image": "assets/heroes/skeleton_king.png"
+  },
+  {
+    "id": "zuus",
+    "heroId": 22,
+    "name": "Zeus",
+    "attribute": "int",
+    "aliases": [
+      "zeus"
+    ],
+    "image": "assets/heroes/zuus.png"
+  }
+]

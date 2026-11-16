@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101213">
+  <meta name="description" content="Draft plans and match lineups for De 4 clownerna och Poppe.">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.opendota.com; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <title>Drafts · De 4 clownerna och Poppe</title>
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./src/styles.css">
+  <script type="module" src="./src/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to drafts</a>
+  <div id="app"><p class="loading">Loading drafts…</p></div>
+  <dialog id="detail-dialog" class="detail-dialog" aria-labelledby="detail-title"></dialog>
+  <dialog id="editor-dialog" class="editor-dialog" aria-labelledby="editor-title"></dialog>
+  <dialog id="picker-dialog" class="picker-dialog" aria-labelledby="picker-title"></dialog>
+  <dialog id="utility-dialog" class="utility-dialog"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <input id="import-file" type="file" accept="application/json,.json" hidden>
+</body>
+</html>

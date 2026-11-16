@@ -1,0 +1,11 @@
+{
+  "id": "tempo",
+  "title": "Early pressure",
+  "description": "Example draft. Secure the side lanes and bring the first item timings to towers. Keep a save behind the front line.",
+  "tags": ["example", "tempo", "push"],
+  "pos1": ["juggernaut", "ursa", "troll_warlord"],
+  "pos2": ["dragon_knight", "lina", "leshrac"],
+  "pos3": ["beastmaster", "lycan", "centaur"],
+  "pos4": ["tusk", "earth_spirit", "nyx_assassin"],
+  "pos5": ["oracle", "dazzle", "chen"]
+}
