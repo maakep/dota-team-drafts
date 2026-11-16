@@ -1,11 +1,11 @@
 {
   "id": "teamfight",
-  "title": "Five-man teamfight",
-  "description": "Example draft. Play around Tidehunter and Phoenix cooldowns. Group when the big ultimates are ready; use the downtime to farm and push out lanes.",
-  "tags": ["example", "teamfight", "counter-initiation"],
+  "title": "Catch and fight",
+  "description": "Catch in circle, melt in circle.",
+  "tags": ["teamfight"],
   "pos1": ["luna", "gyrocopter", "sven"],
-  "pos2": ["puck", "death_prophet", "invoker"],
-  "pos3": ["tidehunter", "mars", "enigma"],
-  "pos4": ["phoenix", "dark_willow", "hoodwink"],
-  "pos5": ["disruptor", "lich", "witch_doctor"]
+  "pos2": ["ember", "sand_king", "puck"],
+  "pos3": ["mars"],
+  "pos4": ["snapfire"],
+  "pos5": ["largo", "witch_doctor", "warlock"]
 }
