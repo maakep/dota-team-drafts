@@ -2,10 +2,51 @@
   "id": "tempo",
   "title": "Early pressure",
   "description": "Get all the towers. Supports are whatever",
-  "tags": ["deathball", "push"],
-  "pos1": ["furion", "tiny", "lone_druid", "sniper", "alchemist"],
-  "pos2": ["dragon_knight", "lina", "leshrac"],
-  "pos3": ["centaur", "death_prophet", "dark_seer", "enigma", "pudge"],
-  "pos4": ["witch_doctor", "pugna", "keeper_of_the_light"],
-  "pos5": ["winter_wyvern", "dazzle", "jakiro", "shadow_shaman"]
+  "tags": [
+    "deathball",
+    "push"
+  ],
+  "bans": [
+    "keeper_of_the_light",
+    "pudge",
+    "magnataur",
+    "earthshaker",
+    "spirit_breaker",
+    "undying",
+    "abyssal_underlord",
+    "ogre_magi"
+  ],
+  "pos1": [
+    "furion",
+    "tiny",
+    "lone_druid",
+    "sniper",
+    "alchemist"
+  ],
+  "pos5": [
+    "winter_wyvern",
+    "dazzle",
+    "jakiro",
+    "shadow_shaman"
+  ],
+  "pos2": [
+    "dragon_knight",
+    "pugna",
+    "lina",
+    "leshrac",
+    "viper",
+    "death_prophet"
+  ],
+  "pos4": [
+    "witch_doctor",
+    "pugna",
+    "keeper_of_the_light"
+  ],
+  "pos3": [
+    "centaur",
+    "death_prophet",
+    "dark_seer",
+    "enigma",
+    "pudge"
+  ]
 }
