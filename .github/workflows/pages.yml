@@ -32,8 +32,6 @@ jobs:
           node-version: '24'
       - run: npm test
       - run: npm run build
-        env:
-          PUBLIC_DRAFT_DISPATCH_TOKEN: ${{ github.event_name != 'pull_request' && secrets.PUBLIC_DRAFT_DISPATCH_TOKEN || '' }}
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         if: github.event_name != 'pull_request'
         with:

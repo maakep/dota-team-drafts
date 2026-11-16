@@ -40,7 +40,7 @@ Drafts use lane order: **1, 5 · 2 · 4, 3**. Key bans appear only in the opened
 
 Select a hero to use it in the lineup. Selecting it again leaves it selected. **Copy lineup** copies a Discord Markdown link, with the draft title as its text and embeds suppressed, followed by the five hero names grouped by lane. Opening the link restores those choices. A draft must be committed to GitHub before another browser can open it.
 
-**New draft** and **Edit** open the visual editor. **Done** keeps your changes in this browser. **Save to GitHub** submits the draft to the save workflow and waits for its result. It checks for concurrent edits before replacing a file. Uncommitted changes have an **Unsaved** badge. The floating **Continue editing** control resumes unfinished work; its X discards that unfinished edit. In the editor, **Discard saved changes** restores the repository copy or removes an uncommitted new draft.
+**New draft** and **Edit** open the visual editor. **Done** keeps your changes in this browser. **Save to GitHub** uses the authenticated GitHub editor by default. If an HTTPS publishing relay is configured, it submits the draft directly and waits for its result. Uncommitted changes have an **Unsaved** badge. The floating **Continue editing** control resumes unfinished work; its X discards that unfinished edit. In the editor, **Discard saved changes** restores the repository copy or removes an uncommitted new draft.
 
 The three included plans are examples. Edit or remove their files to build the team's library.
 
@@ -72,9 +72,11 @@ The **Refresh matches** workflow also runs every Monday morning (07:17 in Sweden
 
 The Pages workflow validates and builds pull requests, then deploys pushes to `main`. It also runs after successful **Save draft** and **Refresh matches** workflows, because commits made using `GITHUB_TOKEN` do not trigger ordinary push workflows. Set **Settings → Pages → Source: GitHub Actions**. Assets use content revision URLs; JSON is revalidated on load.
 
-Direct saving uses the repository secret `PUBLIC_DRAFT_DISPATCH_TOKEN`: a fine-grained PAT restricted to this repository with **Actions: read and write**. The Pages build publishes a lightly obscured representation of it. The browser reconstructs it to dispatch the save workflow. This avoids a literal token pattern in the output; it is not encryption, and the credential is intentionally recoverable by visitors. Anyone who recovers it receives its granted Actions permissions.
+The build publishes no GitHub credentials. The earlier public-token experiment has been removed; any PAT used in that deployment should be revoked. `PUBLIC_DRAFT_DISPATCH_TOKEN` is no longer read by the Pages workflow or build.
 
-The save workflow receives JSON through an environment variable, validates size and hero IDs, strips unknown fields, and writes only `data/drafts/<validated-id>.json`. The browser's token does not need Contents access: the workflow uses its own `GITHUB_TOKEN` to commit. An existing draft requires its previous content fingerprint so simultaneous edits cannot silently overwrite one another. Save and refresh jobs share a concurrency group. If the dispatch secret is absent during a local build, the GitHub editor handoff remains available.
+For direct saving, set `publishEndpoint` in `data/config.json` to an HTTPS relay URL. The relay keeps the repo-only Actions credential server-side, accepts a validated draft at `POST /draft`, dispatches only `save-draft.yml` on `main`, and returns `{ "id": <run ID>, "url": <run URL> }`. `GET /runs/<id>` returns its status and conclusion. The browser sends no GitHub token. The build permits that relay's origin in the content security policy. Without a relay, the GitHub editor handoff stays available.
+
+The save workflow receives JSON through an environment variable, validates size and hero IDs, strips unknown fields, and writes only `data/drafts/<validated-id>.json`. The relay's credential needs only Actions access; the workflow uses its own `GITHUB_TOKEN` to commit. An existing draft requires its previous content fingerprint so simultaneous edits cannot silently overwrite one another. Save and refresh jobs share a concurrency group.
 
 ```sh
 npm run refresh:heroes

@@ -3,7 +3,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { validateDraft } from '../src/domain.js';
-import { obscureToken } from './public-dispatch.mjs';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
 export async function build() {
@@ -15,6 +14,7 @@ export async function build() {
   if (typeof config.teamName !== 'string') throw new Error('config.teamName must be a string.');
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(config.repository)) throw new Error('config.repository must be owner/repo.');
   if (typeof config.branch !== 'string' || !config.branch.trim()) throw new Error('config.branch is required.');
+  if(config.publishEndpoint && new URL(config.publishEndpoint).protocol!=='https:')throw new Error('config.publishEndpoint must use HTTPS.');
   if (config.historyMatchId !== undefined && (!Number.isSafeInteger(config.historyMatchId) || config.historyMatchId <= 0)) throw new Error('config.historyMatchId must be a positive match ID.');
   if (config.manualMatches !== undefined && (!Array.isArray(config.manualMatches) || config.manualMatches.length > 50 || config.manualMatches.some(m => !Number.isSafeInteger(m.id) || m.id <= 0 || !['radiant','dire'].includes(m.side)))) throw new Error('config.manualMatches must contain up to 50 {id, side} entries with numeric IDs and radiant/dire sides.');
   const files = (await readdir(path.join(root, 'data/drafts'))).filter(f => f.endsWith('.json')).sort();
@@ -36,7 +36,8 @@ export async function build() {
   const version = createHash('sha256');
   for (const file of sources) version.update(await readFile(path.join(root,'src',file)));
   const revision = version.digest('hex').slice(0,12);
-  const html = await readFile(path.join(root,'index.html'),'utf8');
+  let html = await readFile(path.join(root,'index.html'),'utf8');
+  if(config.publishEndpoint)html=html.replace("connect-src 'self' https://api.opendota.com",`connect-src 'self' https://api.opendota.com ${new URL(config.publishEndpoint).origin}`);
   await writeFile(path.join(out,'index.html'),html.replace(/\.\/src\/(app\.js|styles\.css)/g,`./src/$1?v=${revision}`));
   for (const file of sources.filter(f=>f.endsWith('.js'))) {
     const code = await readFile(path.join(root,'src',file),'utf8');
@@ -45,7 +46,7 @@ export async function build() {
   await cp(path.join(root, 'assets'), path.join(out, 'assets'), { recursive: true });
   for (const file of ['config.json', 'heroes.json', 'matches.json']) await cp(path.join(root, 'data', file), path.join(out, 'data', file));
   await writeFile(path.join(out, 'data/drafts.json'), `${JSON.stringify(drafts)}\n`);
-  await writeFile(path.join(out,'data/publishing.json'),JSON.stringify(obscureToken(process.env.PUBLIC_DRAFT_DISPATCH_TOKEN || '')));
+  await writeFile(path.join(out,'data/publishing.json'),JSON.stringify({endpoint:config.publishEndpoint || ''}));
   await writeFile(path.join(out, '.nojekyll'), '');
   console.log(`Built ${drafts.length} drafts and ${heroes.length} heroes → dist/`);
 }

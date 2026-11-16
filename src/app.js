@@ -1,6 +1,6 @@
 import { POSITIONS, ROLES, MAX_HEROES, MAX_BANS, MATCH_LIMIT, ATTRIBUTES, validateDraft, cleanDraft, normalizeText, matchesSearch, pickedFit, resolveLineup, preferredLineup, draftHash, parseDraftHash, lineupText, githubCreateUrl } from './domain.js';
 import { loadTeamMatches, loadSingleMatch } from './opendota.js';
-import { publishingToken, submitDraft } from './publishing.js';
+import { publishingEndpoint, submitDraft } from './publishing.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -311,12 +311,12 @@ function showGithub(d) {
 }
 async function saveGithub(draft) {
   if(savingId)return;
-  if(!publishingToken(publishing)){showGithub(draft);return;}
+  if(!publishingEndpoint(publishing)){showGithub(draft);return;}
   const saved=cleanDraft(draft);
   savingId=saved.id;
   if($('#detail-dialog').open)showDetail(selectedId,false);
   try {
-    await submitDraft(config,publishing,saved,repoDrafts.find(d=>d.id===saved.id));
+    await submitDraft(publishing,saved,repoDrafts.find(d=>d.id===saved.id));
     repoDrafts=[...repoDrafts.filter(d=>d.id!==saved.id),saved];
     localDrafts=localDrafts.filter(d=>d.id!==saved.id || JSON.stringify(cleanDraft(d))!==JSON.stringify(saved));
     write('local',localDrafts);toast('Saved to GitHub.');

@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,readFile,writeFile,readdir,realpath,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {obscureToken} from '../scripts/public-dispatch.mjs';
-import {publishingToken,draftFingerprint,submitDraft} from '../src/publishing.js';
+import {publishingEndpoint,draftFingerprint,submitDraft} from '../src/publishing.js';
 import {saveDraft} from '../scripts/save-draft.mjs';
 
 const draft=()=>({id:'workflow-test',title:'Test draft',pos1:['luna'],pos5:['lich'],pos2:['puck'],pos4:['rubick'],pos3:['axe']});
@@ -18,10 +17,9 @@ test.after(async()=>{
   await rm(target,{recursive:true,force:true});
 });
 
-test('published credential is recoverable but contains no literal credential',()=>{
-  const token='test-only-not-a-real-credential';const value=obscureToken(token);
-  assert.ok(!JSON.stringify(value).includes(token));assert.equal(publishingToken(value),token);
-  assert.equal(publishingToken(obscureToken('')),'');assert.equal(publishingToken({parts:[],key:[]}),'');
+test('publishing config accepts only an HTTPS service address',()=>{
+  assert.equal(publishingEndpoint({endpoint:'https://relay.example/api'}),'https://relay.example/api/');
+  assert.equal(publishingEndpoint({endpoint:'http://relay.example'}),'');assert.equal(publishingEndpoint({}),'');
 });
 test('workflow writes only a validated draft and rejects stale updates',async()=>{
   const first=draft();await writeFile(path.join(root,'sentinel.txt'),'unchanged');
@@ -44,15 +42,15 @@ test('browser dispatch sends JSON inputs and waits for confirmed success',async(
   const calls=[];let progress=false;
   const fetcher=async(url,options)=>{
     calls.push({url,options});
-    return new Response(JSON.stringify(options.method==='POST'?{workflow_run_id:123,html_url:'https://github.com/example/repo/actions/runs/123'}:{status:'completed',conclusion:'success'}));
+    return new Response(JSON.stringify(options.method==='POST'?{id:123,url:'https://github.com/example/repo/actions/runs/123'}:{status:'completed',conclusion:'success'}));
   };
-  await submitDraft({repository:'example/repo',branch:'main'},obscureToken('test-only'),draft(),null,{fetcher,delay:async()=>{},onProgress:()=>{progress=true;}});
+  await submitDraft({endpoint:'https://relay.example'},draft(),null,{fetcher,delay:async()=>{},onProgress:()=>{progress=true;}});
   const payload=JSON.parse(calls[0].options.body);
-  assert.equal(payload.ref,'main');assert.equal(payload.inputs.previous,'');assert.deepEqual(JSON.parse(payload.inputs.draft),draft());
-  assert.match(calls[0].url,/save-draft.yml\/dispatches$/);assert.match(calls[1].url,/actions\/runs\/123$/);assert.equal(progress,true);
+  assert.equal(payload.previous,'');assert.deepEqual(payload.draft,draft());assert.equal(calls[0].options.headers.Authorization,undefined);
+  assert.match(calls[0].url,/\/draft$/);assert.match(calls[1].url,/\/runs\/123$/);assert.equal(progress,true);
 });
 test('failed dispatch or run never reports a successful save',async()=>{
-  const config={repository:'example/repo'},pub=obscureToken('test-only');
-  await assert.rejects(submitDraft(config,pub,draft(),null,{fetcher:async()=>new Response('',{status:403})}),/unavailable/);
-  await assert.rejects(submitDraft(config,pub,draft(),null,{fetcher:async(url,options)=>new Response(JSON.stringify(options.method==='POST'?{workflow_run_id:1}:{status:'completed',conclusion:'failure'})),delay:async()=>{}}),/not saved/);
+  const pub={endpoint:'https://relay.example'};
+  await assert.rejects(submitDraft(pub,draft(),null,{fetcher:async()=>new Response('',{status:403})}),/submit/);
+  await assert.rejects(submitDraft(pub,draft(),null,{fetcher:async(url,options)=>new Response(JSON.stringify(options.method==='POST'?{id:1}:{status:'completed',conclusion:'failure'})),delay:async()=>{}}),/not saved/);
 });
