@@ -1,8 +1,58 @@
 {
   "teamId": 9838881,
   "teamName": "De 4 clownerna och Poppe",
-  "updatedAt": "2026-11-16T19:31:52.742Z",
+  "updatedAt": "2026-11-23T18:20:43.496Z",
   "matches": [
+    {
+      "id": 9101719516,
+      "startTime": 1795376068,
+      "duration": 2816,
+      "opponent": "Dansbanders",
+      "opponentId": 9254880,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": false,
+      "heroes": [
+        21,
+        7,
+        129,
+        54,
+        64
+      ],
+      "opponents": [
+        16,
+        26,
+        88,
+        120,
+        94
+      ],
+      "complete": true
+    },
+    {
+      "id": 9101599018,
+      "startTime": 1795370800,
+      "duration": 3794,
+      "opponent": "Dansbanders",
+      "opponentId": 9254880,
+      "league": "E-Sparven Season 6",
+      "radiant": true,
+      "won": false,
+      "heroes": [
+        68,
+        123,
+        14,
+        36,
+        49
+      ],
+      "opponents": [
+        16,
+        30,
+        9,
+        67,
+        108
+      ],
+      "complete": true
+    },
     {
       "id": 9082244244,
       "startTime": 1794165291,
@@ -450,56 +500,6 @@
         26,
         69,
         136
-      ],
-      "complete": true
-    },
-    {
-      "id": 8833410709,
-      "startTime": 1780246820,
-      "duration": 2634,
-      "opponent": "Dansbanders",
-      "opponentId": 9254880,
-      "league": "E-Sparven Season 5",
-      "radiant": false,
-      "won": false,
-      "heroes": [
-        22,
-        41,
-        71,
-        74,
-        30
-      ],
-      "opponents": [
-        106,
-        6,
-        28,
-        128,
-        75
-      ],
-      "complete": true
-    },
-    {
-      "id": 8824131297,
-      "startTime": 1779646292,
-      "duration": 2439,
-      "opponent": "Färskt Kaffe",
-      "opponentId": 9471875,
-      "league": "E-Sparven Season 5",
-      "radiant": true,
-      "won": true,
-      "heroes": [
-        86,
-        111,
-        100,
-        70,
-        64
-      ],
-      "opponents": [
-        53,
-        128,
-        31,
-        27,
-        108
       ],
       "complete": true
     }
